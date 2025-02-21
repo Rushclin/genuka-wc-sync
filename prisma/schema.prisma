@@ -1,0 +1,58 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Subscription {
+  id            String @id @unique
+  companyId     String
+  status        String
+  planLookupKey String
+
+  Company Company @relation(fields: [companyId], references: [id])
+}
+
+model Company {
+  id                String   @id @unique // Genuka company ID
+  handle            String?  @unique
+  name              String
+  description       String?  @db.LongText
+  logoUrl           String?
+  authorizationCode String?
+  accessToken       String?  @db.LongText
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  subscriptions Subscription[]
+  configuration Configuration?
+
+  @@index([id])
+  @@index([handle])
+}
+
+model Configuration {
+  id String @id @default(uuid())
+
+  apiUrl         String
+  consumerKey    String @db.LongText
+  consumerSecret String @db.LongText
+  appVersion     String @default("wc/v3")
+
+  apiKey String @db.LongText // Genuka API Key (retrive in dashboard)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  companyId String  @unique
+  company   Company @relation(fields: [companyId], references: [id])
+}
