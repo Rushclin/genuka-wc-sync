@@ -35,7 +35,7 @@ export interface CollectionDto extends PersistingObject {
   medias: MediaDto[];
 }
 
-interface Variant extends PersistingObject {
+export interface VariantDto extends PersistingObject {
   follow_stock: number;
   title: string;
   price: number;
@@ -44,7 +44,7 @@ interface Variant extends PersistingObject {
   sku: string | null;
   barcode: string | null;
   taxable: number;
-  options: Array<{ id: string; title: string; value: string }>;
+  options: Array<{ id: string; title: string; values: string[] }>;
   metadata: Record<string, unknown> | null;
   product_id: string;
   image_id: string | null;
@@ -85,7 +85,7 @@ export interface ProductDto extends PersistingObject {
   supplier_id: string | null;
   tags: TagDto[];
   medias: MediaDto[];
-  variants: Variant[];
+  variants: VariantDto[];
   options: Option[];
   menus: any[];
 }
@@ -251,7 +251,7 @@ interface WooCommerceLinkDto {
 
 export interface WooCommercerProductCreate {
   name: string;
-  type: "simple" | "variable" | string;
+  type: "simple" | "variable" | "grouped" | "external";
   regular_price: string;
   description: string;
   short_description: string;

@@ -121,6 +121,33 @@ export function mapWooComerceToWooCommerceProductCreateDto(
     name: input.name,
     regular_price: input.regular_price,
     short_description: input.description,
-    type: input.type,
+    type: input.variations!.length > 0 ? "variable" : "simple",
   };
 }
+
+export const extractWooProductDtoInfoFromGenukaProductDto = (
+  input: ProductDto,
+  categories: { id: number }[]
+): WooCommercerProductCreate => {
+  const images: { id: number } | { src: string }[] = (input.medias || []).map(
+    (i) => {
+      return {
+        src: i.micro,
+      };
+    }
+  );
+
+  return {
+    categories: categories,
+    description: input.content,
+    images: images.length ? images : [
+      {
+        src: "https://genuka.com/favicon.ico",
+      },
+    ],
+    name: input.title,
+    regular_price: (input.variants[0]?.price / 100).toFixed(2),
+    short_description: input.content,
+    type: input.variants.length > 0 ? "variable": "simple",
+  };
+};
