@@ -1,4 +1,4 @@
-import { Company } from "@prisma/client";
+import { Company, Configuration } from "@prisma/client";
 
 export type CompanyCreate = Omit<Company, "createdAt" | "updatedAt">;
 
@@ -29,3 +29,8 @@ export interface CompanyDto {
   updatedAt: string;
   configuration?: ConfigurationDto | null;
 }
+
+export type CompanyWithConfiguration = Company & {
+  configuration: Configuration | null; 
+};
+

@@ -105,12 +105,19 @@ export function mapGenukaToWooCommerce(
 
 export function mapWooComerceToWooCommerceProductCreateDto(
   input: WooCommerceProductDto,
-  categories: {id: number}[]
+  categories: { id: number }[]
 ): WooCommercerProductCreate {
+  const images: { id: number } | { src: string }[] = (input.images || []).map(
+    (i) => {
+      return {
+        src: i.src,
+      };
+    }
+  );
   return {
     categories: categories,
     description: input.description,
-    images: [],
+    images,
     name: input.name,
     regular_price: input.regular_price,
     short_description: input.description,

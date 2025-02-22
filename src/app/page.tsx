@@ -1,7 +1,7 @@
 "use client"
 import { Button } from "@/components/ui/button";
 import Spinner from "@/components/ui/spinner";
-import useConfiguration from "@/hooks/useConfiguration";
+import useConfiguration from "@/hooks/use-configuration";
 import { ArrowRight } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -12,7 +12,9 @@ export default function Home() {
 
   if (!companyId) {
     return (
-      <Spinner className="" />
+      <div>
+        <p className="text-slate-800 text-sm text-center">La companie pour laquelle vous souhaitez installer l&apos;application est introuvable <br/> Il faut passer par le store Genuka pour le faire </p>
+      </div>
     )
   }
 
@@ -29,7 +31,7 @@ export default function Home() {
     router.push(`/pages/config?companyId=${companyId}`, { scroll: false })
   }
 
-  const goToSync =() => {
+  const goToSync = () => {
     router.push(`/pages/synchronisation?companyId=${companyId}`, { scroll: false })
   }
 
@@ -49,7 +51,7 @@ export default function Home() {
           <div className="mt-10">
             <Button className="border" onClick={() => isConfigured ? goToSync() : goToConfig()
             }>
-              {isConfigured ? <>Commencer la synchronisation</> : <>Commencer </>} <ArrowRight />
+              {isConfigured ? <>Commencer la synchronisation</> : <>Configurer Woo Commerce</>} <ArrowRight />
             </Button>
           </div>
         </div>

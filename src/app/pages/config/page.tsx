@@ -7,6 +7,7 @@ import { ConfigurationDto } from '@/types/company';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Spinner from '@/components/ui/spinner';
 import { useToast } from '@/hooks/use-toast';
+import { saveConfiguration } from '@/app/actions/config';
 
 const ConfigPage = () => {
   const searchParams = useSearchParams();
@@ -41,22 +42,23 @@ const ConfigPage = () => {
   const onSubmit = async (data: ConfigurationDto) => {
     try {
       setIsLoading(true)
-      const response = await fetch("/api/company/configuration", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ ...data }),
-      });
+      // const response = await fetch("/api/company/configuration", {
+      //   method: "POST",
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //   },
+      //   body: JSON.stringify({ ...data }),
+      // });
+      const response = await saveConfiguration(data)
 
-      if (!response.ok) {
+      if (!response) {
         toast({
           description: "Une erreur s'est produite.",
           variant: "destructive",
         })
       }
 
-      setIsLoading(false) 
+      setIsLoading(false)
       toast({
         description: "Votre configuration a bien été prise en compte.",
       })
@@ -77,7 +79,7 @@ const ConfigPage = () => {
   return (
     <div className='border border-dashed w-full max-w-lg mx-auto rounded-md p-4 bg-white shadow-md'>
       <h2 className='text-xl font-semibold text-gray-700 mb-4'>Configuration</h2>
-  
+
       <form onSubmit={handleSubmit(onSubmit)} className='space-y-4'>
         <div>
           <label className='block text-sm font-medium text-gray-600'>API URL</label>

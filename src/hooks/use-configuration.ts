@@ -1,28 +1,20 @@
 "use client";
-import { CompanyDto } from "@/types/company";
+import { retriveCompanny } from "@/app/actions/company";
+import {  CompanyWithConfiguration } from "@/types/company";
 import { useState, useEffect } from "react";
-
-interface ConfigurationResponse {
-  company: CompanyDto;
-}
 
 const useConfiguration = (companyId: string) => {
   const [isConfigured, setIsConfigured] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [company, setCompany] = useState<CompanyDto | undefined>(undefined)
+  const [company, setCompany] = useState<CompanyWithConfiguration | undefined>(undefined)
 
   useEffect(() => {
     const verifyConfiguration = async () => {
       try {
-        const response = await fetch(
-          `/api/company/configuration?companyId=${companyId}`
-        );
-        
-        const data: ConfigurationResponse = await response.json();
-        const { company } = data;
+        const response = await retriveCompanny(companyId);
 
-        setCompany(company);
-        setIsConfigured(company.configuration ? true : false);
+        setCompany(response);
+        setIsConfigured(response.configuration ? true : false);
       } catch (error) {
         console.error(
           "Erreur lors de la vérification de la configuration :",
