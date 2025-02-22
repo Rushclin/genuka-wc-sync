@@ -1,3 +1,4 @@
+import { GenukaCustomerDto } from "@/types/customer";
 import {
   ProductDto,
   WooCommerceAttributeDto,
@@ -140,14 +141,51 @@ export const extractWooProductDtoInfoFromGenukaProductDto = (
   return {
     categories: categories,
     description: input.content,
-    images: images.length ? images : [
-      {
-        src: "https://genuka.com/favicon.ico",
-      },
-    ],
+    images: images.length
+      ? images
+      : [
+          {
+            src: "https://genuka.com/favicon.ico",
+          },
+        ],
     name: input.title,
     regular_price: (input.variants[0]?.price / 100).toFixed(2),
     short_description: input.content,
-    type: input.variants.length > 0 ? "variable": "simple",
+    type: input.variants.length > 0 ? "variable" : "simple",
+  };
+};
+
+export const extractWooCustomerDtoInfoFromGenukaCustomer = (
+  input: GenukaCustomerDto
+) => {
+  return {
+    email: input.email ,
+    first_name: input.first_name,
+    last_name: input.last_name,
+    username: input.email,
+    billing: {
+      first_name: "John",
+      last_name: "Doe",
+      company: "",
+      address_1: "969 Market",
+      address_2: "",
+      city: "San Francisco",
+      state: "CA",
+      postcode: "94103",
+      country: "US",
+      email: "john.doe@example.com",
+      phone: "(555) 555-5555",
+    },
+    shipping: {
+      first_name: input.shipping_address?.first_name,
+      last_name: input.shipping_address?.last_name,
+      company: "input.shipping_address?.company",
+      address_1: "input.shipping_address",
+      address_2: "input.shipping_address?",
+      city: input.shipping_address?.city,
+      state: "input.shipping_address?.state",
+      postcode: input.shipping_address?.postal_code,
+      country: input.shipping_address?.country,
+    },
   };
 };

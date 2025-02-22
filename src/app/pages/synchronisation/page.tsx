@@ -12,6 +12,7 @@ import { mapGenukaToWooCommerce, mapWooComerceToWooCommerceProductCreateDto } fr
 import { syncProduct } from '@/app/actions/products';
 import { useToast } from '@/hooks/use-toast';
 import Spinner from '@/components/ui/spinner';
+import { syncCustomers } from '@/app/actions/customers';
 
 function getData(): Payment[] {
     return Array.from({ length: 100 }, (_, i) => ({
@@ -34,7 +35,7 @@ const SynchronisationPage = () => {
     const { toast } = useToast()
 
     const [loading, setLoading] = useState(false)
-console.log({loading})
+    console.log({ loading })
     if (!companyId) {
         return (
             <div>
@@ -60,7 +61,7 @@ console.log({loading})
     }
 
     const { configuration } = company
-    
+
     if (!configuration) {
         return (
             <div>
@@ -162,13 +163,28 @@ console.log({loading})
         });
     }
 
+    const handlerSyncCustomers = async () => {
+        setLoading(true)
+
+        syncCustomers(configuration)
+            .then(res => {
+                setLoading(false)
+                console.log({ res })
+            })
+            .catch(err => {
+                setLoading(false)
+
+                console.error(err)
+            })
+    }
+
 
     return (
         <div className='w-full h-full p-4 bg-white rounded-md shadow-md'>
             {/* <div className='w-full h-full border border-dashed rounded-lg p-2 '> */}
             <div className='mb-3 grid grid-cols-3 gap-4'>
                 <Button onClick={() => handlerSyncProducts()} className='w-full bg-[#873EFF] text-white p-2 rounded-md'>Produits</Button>
-                <Button className='w-full bg-[#873EFF] text-white p-2 rounded-md'>Clients</Button>
+                <Button onClick={() => handlerSyncCustomers()} className='w-full bg-[#873EFF] text-white p-2 rounded-md'>Clients</Button>
                 <Button className='w-full bg-[#873EFF] text-white p-2 rounded-md'>Commandes</Button>
             </div>
             <div className='mt-5'>
