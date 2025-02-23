@@ -13,6 +13,7 @@ import { finhisCustomerSync, syncCustomers } from '@/app/actions/customers';
 import { GlobalLogs } from '@/utils/logger';
 import { retrieveGlobalLogs } from '@/app/actions/config';
 import { fromPrismaLogToGlobalLogDto } from '@/lib/utils';
+import { syncOrders } from '@/app/actions/orders';
 
 const SynchronisationPage = () => {
 
@@ -82,6 +83,21 @@ const SynchronisationPage = () => {
         });
     }
 
+    const handlerSyncOrders = async () => {
+        setLoading(true)
+        syncOrders(company)
+            .then(re => {
+                console.log({ re })
+                setLoading(false)
+
+            })
+            .catch(err => {
+                console.log({ err })
+                setLoading(false)
+
+            })
+    }
+
     const handlerSyncCustomers = async () => {
         setLoading(true)
 
@@ -107,7 +123,7 @@ const SynchronisationPage = () => {
             <div className='mb-3 grid grid-cols-3 gap-4'>
                 <Button onClick={() => handlerSyncProducts()} className='w-full bg-[#873EFF] text-white p-2 rounded-md'>Produits</Button>
                 <Button onClick={() => handlerSyncCustomers()} className='w-full bg-[#873EFF] text-white p-2 rounded-md'>Clients</Button>
-                <Button className='w-full bg-[#873EFF] text-white p-2 rounded-md'>Commandes</Button>
+                <Button onClick={() => handlerSyncOrders()} className='w-full bg-[#873EFF] text-white p-2 rounded-md'>Commandes</Button>
             </div>
             <div className='mt-5'>
                 Historique des Logs

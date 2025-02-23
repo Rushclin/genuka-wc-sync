@@ -5,7 +5,7 @@ import cron from "node-cron";
 
 // Planifiez une tâche pour s'exécuter toutes les minutes
 cron.schedule("* * * * *", () => {
-  console.log("Cron job exécuté à:", new Date().toISOString());
+  // console.log("Cron job exécuté à:", new Date().toISOString());
   // Ajoutez ici la logique de votre tâche
 });
 
