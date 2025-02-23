@@ -1,4 +1,4 @@
-import { GenukaCustomerDto } from "@/types/customer";
+import { GenukaCustomerDto, WooCustomerDto } from "@/types/customer";
 import {
   ProductDto,
   WooCommerceAttributeDto,
@@ -157,35 +157,52 @@ export const extractWooProductDtoInfoFromGenukaProductDto = (
 
 export const extractWooCustomerDtoInfoFromGenukaCustomer = (
   input: GenukaCustomerDto
-) => {
+): WooCustomerDto => {
+  const address_1 = "";
+  const address_2 = "";
+  const { addresses } = input;
+
+  const defaultAddress = addresses.length > 0 ? addresses[0] : null;
+
   return {
-    email: input.email ,
+    email: input.email,
     first_name: input.first_name,
     last_name: input.last_name,
     username: input.email,
     billing: {
-      first_name: "John",
-      last_name: "Doe",
-      company: "",
-      address_1: "969 Market",
-      address_2: "",
-      city: "San Francisco",
-      state: "CA",
-      postcode: "94103",
-      country: "US",
-      email: "john.doe@example.com",
-      phone: "(555) 555-5555",
+      first_name:
+        input.billing_address?.first_name ?? defaultAddress?.first_name ?? "",
+      last_name:
+        input.billing_address?.last_name ?? defaultAddress?.last_name ?? "",
+      company:
+        input.billing_address?.company ??
+        defaultAddress?.company ??
+        "Default company",
+      address_1: "Default address",
+      address_2: "Default address",
+      city: input.billing_address?.city ?? defaultAddress?.city ?? "Default City",
+      state: input.billing_address?.state ?? defaultAddress?.state ?? "Default State",
+      postcode:
+        input.billing_address?.postal_code ?? defaultAddress?.postal_code ?? "Default Post Code",
+      country: input.billing_address?.country ?? defaultAddress?.country ?? "Default Country",
+      email: input.billing_address?.email ?? defaultAddress?.email ?? "doe@gmail.com",
+      phone: input.billing_address?.phone ?? defaultAddress?.phone ?? "0000000000",
     },
     shipping: {
-      first_name: input.shipping_address?.first_name,
-      last_name: input.shipping_address?.last_name,
-      company: "input.shipping_address?.company",
-      address_1: "input.shipping_address",
-      address_2: "input.shipping_address?",
-      city: input.shipping_address?.city,
-      state: "input.shipping_address?.state",
-      postcode: input.shipping_address?.postal_code,
-      country: input.shipping_address?.country,
+      first_name:
+        input.shipping_address?.first_name ?? defaultAddress?.first_name ?? "",
+      last_name:
+        input.shipping_address?.last_name ?? defaultAddress?.last_name ?? "",
+      company: input.shipping_address?.company ?? defaultAddress?.company ?? "Default Company",
+      address_1: "Default address",
+      address_2: "Default address",
+      city: input.shipping_address?.city ?? defaultAddress?.city ?? "Default City",
+      state: input.shipping_address?.state ?? defaultAddress?.state ?? "Default State",
+      postcode:
+        input.shipping_address?.postal_code ??
+        defaultAddress?.postal_code ??
+        "Default Post Code",
+      country: input.shipping_address?.country ?? defaultAddress?.country ?? "Default Country",
     },
   };
 };

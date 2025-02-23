@@ -1,18 +1,15 @@
 "use client"
+
 import { Button } from '@/components/ui/button';
 import { useSearchParams } from 'next/navigation';
 import React, { useState } from 'react'
-import WooCommerceRestApi from "@woocommerce/woocommerce-rest-api";
 import { columns, Payment } from './columns';
 import { DataTable } from './data-table';
 import useConfiguration from '@/hooks/use-configuration';
-import Genuka from 'genuka';
-import { ProductDto, WooCommerceProductDto } from '@/types/product';
-import { mapGenukaToWooCommerce, mapWooComerceToWooCommerceProductCreateDto } from '@/lib/utils';
 import { syncProduct } from '@/app/actions/products';
 import { useToast } from '@/hooks/use-toast';
 import Spinner from '@/components/ui/spinner';
-import { syncCustomers } from '@/app/actions/customers';
+import { finhisCustomerSync, syncCustomers } from '@/app/actions/customers';
 
 function getData(): Payment[] {
     return Array.from({ length: 100 }, (_, i) => ({
@@ -23,9 +20,6 @@ function getData(): Payment[] {
     }));
 }
 
-interface WooCommerceProductResponse {
-    data: WooCommerceProductDto;
-}
 
 const SynchronisationPage = () => {
 
@@ -72,85 +66,6 @@ const SynchronisationPage = () => {
         )
     }
 
-    // const syncProduct = async () => {
-
-    //     const wooApi = new WooCommerceRestApi({
-    //         url: configuration!.apiUrl,
-    //         consumerKey: configuration!.consumerKey,
-    //         consumerSecret: configuration!.consumerSecret,
-    //         version: "wc/v3",
-    //         queryStringAuth: true
-    //     });
-
-    //     const genuka = await Genuka.initialize({ id: companyId })
-
-    //     const genukaProducts = await genuka.productService.list({}) as ProductDto[];
-
-    //     wooApi.get("products").then(res => console.log(res.data)).catch(err => console.error(err))
-
-    //     console.log({ genukaProducts })
-
-    //     for (const product of genukaProducts) {
-    //         // On teste d'abord si le produit existe, donc dispose d'un woocommerceId dans les metadonnees
-    //         if (product.metadata && product.metadata.woocommerceId) {
-
-    //             // On met a jour le produit
-    //             const res: WooCommerceProductResponse = await wooApi.get(`products/${product.metadata.woocommerceId}`);
-    //             console.log(res.data)
-
-    //         } else {
-    //             // On cree le produit
-    //             const transformProduct = mapGenukaToWooCommerce(product)
-    //             // On cree les differentes categories 
-    //             if (transformProduct.categories.length) {
-    //                 // On cree les categories
-    //             }
-    //             const productToCreate = mapWooComerceToWooCommerceProductCreateDto(transformProduct, []);
-    //             // Update Genuka product with wooCommerceId 
-    //             console.log({ productToCreate })
-
-    //             // On doit faire des tests ici. 
-    //             // if(transformProduct.categories.length){
-    //             //     for(const cat of transformProduct.categories){
-    //             //         const res = await wooApi.post(`products/categories`, cat)
-
-    //             //         }
-    //             // }
-
-    //             const { data } = await wooApi.post(`products`, productToCreate)
-    //             // genuka.products.queries()
-
-    //             const updateResponse = await fetch("/api/company/products",
-    //                 {
-    //                     method: "PUT",
-    //                     //   headers: {
-    //                     //     "Content-Type": "application/json", 
-    //                     //     "X-API-Key": configuration!.apiKey, 
-    //                     //     "X-Company": companyId,
-    //                     //     // "X-Shop": this.genuka_shop_id, 
-    //                     //   },
-    //                     body: JSON.stringify({
-    //                         // metadata: {
-    //                         //   woocommerceId: data.id, 
-    //                         // },
-    //                         woocommerceId: data.id,
-    //                         apiKey: configuration!.apiKey,
-    //                         companyId,
-    //                         productId: product.id
-    //                     }),
-    //                 }
-    //             );
-
-    //             console.log({ updateResponse })
-
-    //             if (updateResponse.status) {
-
-    //             }
-
-    //         }
-    //     }
-    // }
-
     const handlerSyncProducts = async () => {
         setLoading(true)
         syncProduct(configuration).then(res => {
@@ -176,6 +91,8 @@ const SynchronisationPage = () => {
 
                 console.error(err)
             })
+
+        finhisCustomerSync()
     }
 
 
