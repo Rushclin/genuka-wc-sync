@@ -7,6 +7,15 @@ interface LogEntry {
   data?: unknown;
 }
 
+export interface GlobalLogs {
+  type: "create" | "update" | "delete" | string;
+  module: "products" | "orders" | "customers" | string;
+  date: Date;
+  id: number | string;
+  statut: "success" | "failed" | string;
+  companyId: string
+}
+
 export class Logger {
   private log(level: LogLevel, message: string, data?: unknown) {
     const entry: LogEntry = {

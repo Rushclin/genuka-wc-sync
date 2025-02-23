@@ -2,20 +2,13 @@
 
 import { extractWooCustomerDtoInfoFromGenukaCustomer } from "@/lib/utils";
 import { GenukaCustomerDto, WooCustomerDto } from "@/types/customer";
-import logger from "@/utils/logger";
+import logger, { GlobalLogs } from "@/utils/logger";
 import { Configuration } from "@prisma/client";
 import WooCommerceRestApi from "@woocommerce/woocommerce-rest-api";
+import loggerService from "../../services/database/logger.service";
 
 interface ResponseGenukaCustomerDto {
   data: GenukaCustomerDto[];
-}
-
-interface GlobalLogs {
-  type: "create" | "update" | "delete";
-  module: "products" | "orders" | "customers";
-  date: Date;
-  id: number | string;
-  statut: "success" | "failed";
 }
 
 const globalLogs: GlobalLogs[] = [];
@@ -25,7 +18,6 @@ export const syncCustomers = async (
 ): Promise<boolean> => {
   try {
     logger.debug("Init Woo Commerce and Genuka SDK");
-    // Init Genuka and WooCommerce
     const wooApi = new WooCommerceRestApi({
       url: config.apiUrl,
       consumerKey: config.consumerKey,
@@ -63,7 +55,8 @@ export const syncCustomers = async (
       if (existingCustomer.data.length === 1) {
         logger.info(`Customer ${genukaCustomer.email} already exists`);
         const { data } = existingCustomer;
-        await updateWooCustomer(wooApi, customerToCreate, data[0].id);
+        
+        await updateWooCustomer(wooApi, customerToCreate, data[0].id, config);
 
         globalLogs.push({
           type: "update",
@@ -71,6 +64,7 @@ export const syncCustomers = async (
           date: new Date(),
           id: data[0].id,
           statut: "success",
+          companyId: config.companyId,
         });
         continue;
       }
@@ -83,8 +77,9 @@ export const syncCustomers = async (
         type: "create",
         module: "customers",
         date: new Date(),
-        id: genukaCustomer.id, 
+        id: genukaCustomer.id,
         statut: "success",
+        companyId: config.companyId,
       });
     }
 
@@ -93,11 +88,12 @@ export const syncCustomers = async (
     logger.error(`${error}`);
 
     globalLogs.push({
-      type: "create", 
+      type: "create",
       module: "customers",
       date: new Date(),
-      id: "N/A", 
+      id: "N/A",
       statut: "failed",
+      companyId: config.companyId,
     });
 
     throw new Error("Une erreur s'est produite", { cause: error });
@@ -109,11 +105,13 @@ export const syncCustomers = async (
  * @param {WooCommerceRestApi} wooApi
  * @param {WooCustomerDto} wooCustomer
  * @param {number} woocommerceId
+ * @param {config} Configuration
  */
 const updateWooCustomer = async (
   wooApi: WooCommerceRestApi,
   wooCustomer: WooCustomerDto,
-  woocommerceId: number
+  woocommerceId: number,
+  config: Configuration
 ) => {
   try {
     logger.debug(`Trying to update ${wooCustomer.email}`);
@@ -129,6 +127,7 @@ const updateWooCustomer = async (
       date: new Date(),
       id: woocommerceId,
       statut: "failed",
+      companyId: config.companyId,
     });
 
     throw new Error("Une erreur s'est produite", { cause: error });
@@ -179,11 +178,12 @@ const updateGenukaCustomer = async (
       date: new Date(),
       id: genukaCustomer.id,
       statut: "success",
+      companyId: config.companyId,
     });
 
     return true;
   } catch (error) {
-    console.error({ error });
+    logger.error(`${error}`);
 
     globalLogs.push({
       type: "update",
@@ -191,6 +191,7 @@ const updateGenukaCustomer = async (
       date: new Date(),
       id: genukaCustomer.id,
       statut: "failed",
+      companyId: config.companyId,
     });
 
     throw new Error("Une erreur s'est produite", { cause: error });
@@ -198,5 +199,7 @@ const updateGenukaCustomer = async (
 };
 
 export const finhisCustomerSync = async () => {
-  console.log(globalLogs);
+  for (const global of globalLogs) {
+    await loggerService.insert(global);
+  }
 };

@@ -6,6 +6,8 @@ import {
   WooCommercerProductCreate,
   WooCommerceVariationDto,
 } from "@/types/product";
+import { GlobalLogs } from "@/utils/logger";
+import { Logger } from "@prisma/client";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -158,8 +160,6 @@ export const extractWooProductDtoInfoFromGenukaProductDto = (
 export const extractWooCustomerDtoInfoFromGenukaCustomer = (
   input: GenukaCustomerDto
 ): WooCustomerDto => {
-  const address_1 = "";
-  const address_2 = "";
   const { addresses } = input;
 
   const defaultAddress = addresses.length > 0 ? addresses[0] : null;
@@ -206,3 +206,15 @@ export const extractWooCustomerDtoInfoFromGenukaCustomer = (
     },
   };
 };
+
+
+export const fromPrismaLogToGlobalLogDto = (input: Logger): GlobalLogs => {
+return {
+  companyId: input.companyId,
+  date: input.createdAt,
+  id: input.elementId,
+  module: input.module,
+  statut: input.statut,
+  type: input.type
+}
+}

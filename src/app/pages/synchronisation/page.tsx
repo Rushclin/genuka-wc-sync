@@ -2,34 +2,38 @@
 
 import { Button } from '@/components/ui/button';
 import { useSearchParams } from 'next/navigation';
-import React, { useState } from 'react'
-import { columns, Payment } from './columns';
+import React, { useEffect, useState } from 'react'
+import { columns } from './columns';
 import { DataTable } from './data-table';
 import useConfiguration from '@/hooks/use-configuration';
 import { syncProduct } from '@/app/actions/products';
 import { useToast } from '@/hooks/use-toast';
 import Spinner from '@/components/ui/spinner';
 import { finhisCustomerSync, syncCustomers } from '@/app/actions/customers';
-
-function getData(): Payment[] {
-    return Array.from({ length: 100 }, (_, i) => ({
-        id: Math.random().toString(36).substring(2, 10), // ID unique aléatoire
-        amount: Math.floor(Math.random() * 1000) + 50, // Montant entre 50 et 1050
-        status: "failed", // Status aléatoire
-        email: `user${i + 1}@example.com`, // Email unique
-    }));
-}
-
+import { GlobalLogs } from '@/utils/logger';
+import { retrieveGlobalLogs } from '@/app/actions/config';
+import { fromPrismaLogToGlobalLogDto } from '@/lib/utils';
 
 const SynchronisationPage = () => {
 
     const searchParams = useSearchParams();
     const companyId = searchParams.get("companyId");
-    const data = getData()
     const { toast } = useToast()
 
     const [loading, setLoading] = useState(false)
-    console.log({ loading })
+    const [globalLogs, setGlobalLogs] = useState<GlobalLogs[]>([])
+
+    useEffect(() => {
+        if (companyId) {
+            const retreive = async () => {
+                const logs = await retrieveGlobalLogs(companyId);
+                setGlobalLogs(logs.map(fromPrismaLogToGlobalLogDto))
+            }
+            retreive()
+        }
+    }, [companyId, loading])
+
+
     if (!companyId) {
         return (
             <div>
@@ -68,7 +72,7 @@ const SynchronisationPage = () => {
 
     const handlerSyncProducts = async () => {
         setLoading(true)
-        syncProduct(configuration).then(res => {
+        syncProduct(configuration).then(async res => {
             console.log({ res })
             setLoading(false)
         }).catch(err => {
@@ -82,9 +86,10 @@ const SynchronisationPage = () => {
         setLoading(true)
 
         syncCustomers(configuration)
-            .then(res => {
+            .then(async res => {
                 setLoading(false)
                 console.log({ res })
+
             })
             .catch(err => {
                 setLoading(false)
@@ -105,10 +110,10 @@ const SynchronisationPage = () => {
                 <Button className='w-full bg-[#873EFF] text-white p-2 rounded-md'>Commandes</Button>
             </div>
             <div className='mt-5'>
-                {companyId} Historique des Logs
+                Historique des Logs
             </div>
             <div className='mt-5 max-h-[450px] overflow-y-scroll'>
-                <DataTable columns={columns} data={data} />
+                <DataTable columns={columns} data={globalLogs} />
             </div>
         </div>
     )

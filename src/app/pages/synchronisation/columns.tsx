@@ -1,27 +1,28 @@
 "use client"
 
+import { GlobalLogs } from "@/utils/logger"
 import { ColumnDef } from "@tanstack/react-table"
 
-// This type is used to define the shape of our data.
-// You can use a Zod schema here if you want.
-export type Payment = {
-  id: string
-  amount: number
-  status: "pending" | "processing" | "success" | "failed"
-  email: string
-}
 
-export const columns: ColumnDef<Payment>[] = [
+export const columns: ColumnDef<GlobalLogs>[] = [
   {
-    accessorKey: "status",
-    header: "Status",
+    accessorKey: "date",
+    header: "Date",
   },
   {
-    accessorKey: "email",
-    header: "Email",
+    accessorKey: "module",
+    header: "Module",
   },
   {
-    accessorKey: "amount",
-    header: "Amount",
+    accessorKey: "id",
+    header: "ID",
   },
+  {
+    accessorKey: "type",
+    header: "Action",
+  },
+  {
+    accessorKey: "statut",
+    header: "Statut",
+  }
 ]
