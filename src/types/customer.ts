@@ -25,7 +25,7 @@ export interface GenukaCustomerDto {
   shipping_address: GenukaAddressDto | null; 
 }
 
-interface GenukaAddressDto {
+export interface GenukaAddressDto {
   id: string;
   label: string | null;
   first_name: string;
@@ -63,7 +63,7 @@ export interface WooCustomerDto {
   shipping: WooShippingAddressDto;
 }
 
-interface WooBillingAddressDto {
+export interface WooBillingAddressDto {
   first_name: string;
   last_name: string;
   company: string;

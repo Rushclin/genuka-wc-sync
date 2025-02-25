@@ -35,6 +35,20 @@ export interface CollectionDto extends PersistingObject {
   medias: MediaDto[];
 }
 
+interface StockDto {
+  id: number;
+  warehouse_id: string;
+  stock_id: string;
+  quantity: number;
+  expiration_date: string;
+  production_date: string;
+  batch_number: string;
+  metadata: null;
+  created_at: null;
+  updated_at: null;
+  laravel_through_key: string;
+}
+
 export interface VariantDto extends PersistingObject {
   follow_stock: number;
   title: string;
@@ -50,11 +64,16 @@ export interface VariantDto extends PersistingObject {
   image_id: string | null;
   whatsapp_product_id: string | null;
   composite_stocks: any[];
-  stocks: any[];
+  stocks: StockDto[];
   estimated_quantity: number | null;
-  supplierproduct: any | null;
+  supplierproduct: null;
+
+  // product: ProductvariantDto;
 }
 
+interface ProductvariantDto extends ProductDto{
+  stocks: StockDto[]
+}
 interface Option extends PersistingObject {
   title: string;
   position: number;
@@ -70,6 +89,49 @@ interface Metadata {
   woocommerceWebsiteUrl: string;
 }
 
+interface Pivot {
+  product_id: string;
+  shop_id: string;
+  metadata: null;
+}
+
+interface WarehouseDto {
+  id: string;
+  name: string;
+  description: string;
+  metadata: null;
+  company_id: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: null;
+  pivot: {
+    shop_id: string;
+    warehouse_id: string;
+    metadata: null;
+  };
+}
+
+interface ShopDto {
+  id: string;
+  name: string;
+  slug: string;
+  currency_code: string;
+  currency_name: string;
+  description: string;
+  metadata: null;
+  company_id: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: null;
+  pivot: Pivot;
+  address: null;
+  warehouses: WarehouseDto[];
+  domains: any[];
+  logoUrl: string;
+  logo: null;
+}
+
+
 export interface ProductDto extends PersistingObject {
   title: string;
   type: string;
@@ -84,11 +146,13 @@ export interface ProductDto extends PersistingObject {
   is_taxable: number;
   supplier_id: string | null;
   tags: TagDto[];
+  shops: ShopDto[];
   medias: MediaDto[];
   variants: VariantDto[];
   options: Option[];
   menus: any[];
 }
+
 
 export interface WooCommerceCreate {
   name: string;
