@@ -6,7 +6,6 @@ import { CompanyWithConfiguration } from "@/types/company";
 import { ProductDto, VariantDto } from "@/types/product";
 import logger, { GlobalLogs } from "@/utils/logger";
 import WooCommerceRestApi from "@woocommerce/woocommerce-rest-api";
-import Genuka from "genuka";
 import slugify from "slugify";
 
 const globalLogs: GlobalLogs[] = [];
@@ -17,9 +16,6 @@ const globalLogs: GlobalLogs[] = [];
 export const syncProduct = async (config: CompanyWithConfiguration) => {
   try {
     logger.info("Init Genuka and Woo Commerce SDK");
-    const genukaApi = await Genuka.initialize({
-      id: config.configuration!.companyId,
-    });
     const wooApi = new WooCommerceRestApi({
       url: config.configuration!.apiUrl,
       consumerKey: config.configuration!.consumerKey,
@@ -28,12 +24,10 @@ export const syncProduct = async (config: CompanyWithConfiguration) => {
       queryStringAuth: true,
     });
 
-    logger.info("Retrieve Genuka Products");
-    const genukaProducts = (await genukaApi.productService.list(
-      {}
-    )) as ProductDto[];
+    const products = await fetchAllGenukaProducts(config);
 
-    await upsertWooProduct(config, wooApi, genukaProducts);
+    await upsertWooProduct(config, wooApi, products);
+
   } catch (error) {
     logger.error(`${error}`);
     throw new Error("Une erreur s'est produite lors de la synchronisation", {
@@ -41,6 +35,54 @@ export const syncProduct = async (config: CompanyWithConfiguration) => {
     });
   }
 };
+
+
+
+
+
+const fetchAllGenukaProducts = async (
+  config: CompanyWithConfiguration
+): Promise<ProductDto[]> => {
+  const allProducts: ProductDto[] = [];
+  let currentPage = 1;
+  let hasNextPage = true;
+
+  const headers = new Headers();
+  headers.append("Accept", "application/json");
+  headers.append("Content-Type", "application/json");
+  headers.append("X-Company", `${config.configuration?.companyId}`);
+  headers.append("Authorization", `Bearer ${config.accessToken}`);
+
+  while (hasNextPage) {
+    const requestOptions = {
+      method: "GET",
+      headers,
+    };
+
+    const response = await fetch(
+      `${process.env.GENUKA_URL}/${process.env.GENUKA_VERSION}/admin/products?page=${currentPage}`,
+      requestOptions
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch Genuka products");
+    }
+
+    const { data, meta } = (await response.json()) as {
+      data: ProductDto[];
+      meta: { current_page: number; last_page: number };
+    };
+
+    allProducts.push(...data);
+    currentPage++;
+
+    hasNextPage = currentPage <= meta.last_page;
+  }
+
+  return allProducts;
+};
+
+
 
 /**
  * Update or Create Woo Commerce product
