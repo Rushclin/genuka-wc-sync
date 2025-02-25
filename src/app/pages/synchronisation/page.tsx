@@ -13,7 +13,7 @@ import { finhisCustomerSync, syncCustomers } from '@/app/actions/customers';
 import { GlobalLogs } from '@/utils/logger';
 import { retrieveGlobalLogs } from '@/app/actions/config';
 import { fromPrismaLogToGlobalLogDto } from '@/lib/utils';
-import { syncOrders } from '@/app/actions/orders';
+import { finhisOrdersSync, syncOrders } from '@/app/actions/orders';
 
 const SynchronisationPage = () => {
 
@@ -95,6 +95,7 @@ const SynchronisationPage = () => {
                 setLoading(false)
 
             })
+        await finhisOrdersSync()
     }
 
     const handlerSyncCustomers = async () => {

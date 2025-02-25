@@ -10,12 +10,14 @@ import {
   mapGenukaOrderToWooOrder,
   mapGenukaProductToAddOtherProperties,
 } from "@/lib/utils";
+import loggerService from "@/services/database/logger.service";
 
 const globalLogs: GlobalLogs[] = [];
-interface ResponseGenukaOrdersDto {
-  data: OrderDTO[];
-}
 
+/**
+ * @param config
+ * @returns
+ */
 export const syncOrders = async (
   config: CompanyWithConfiguration
 ): Promise<boolean> => {
@@ -30,7 +32,76 @@ export const syncOrders = async (
     });
 
     logger.info("Retrieve orders");
+    const data = await fetchAllGenukaOrders(config);
+    await upsertWooOrders(wooApi, config, data);
+    // Par la suite si on souhaite juste syncroniser un produit (on doit faire le appeler le upsert)
+    // console.log("On a le nombre de commande suivant ==> ",data.length)
 
+    return true;
+  } catch (error) {
+    logger.error("An error occurred while syncing orders", error);
+
+    globalLogs.push({
+      type: "create",
+      module: "customers",
+      date: new Date(),
+      id: "N/A",
+      statut: "failed",
+      companyId: config.configuration!.companyId,
+    });
+
+    throw new Error("An error occurred while syncing orders", { cause: error });
+  }
+};
+
+const fetchAllGenukaOrders = async (
+  config: CompanyWithConfiguration
+): Promise<OrderDTO[]> => {
+  const allOrders: OrderDTO[] = [];
+  let currentPage = 1;
+  let hasNextPage = true;
+
+  const headers = new Headers();
+  headers.append("Accept", "application/json");
+  headers.append("Content-Type", "application/json");
+  headers.append("X-Company", `${config.configuration?.companyId}`);
+  headers.append("Authorization", `Bearer ${config.accessToken}`);
+
+  while (hasNextPage) {
+    const requestOptions = {
+      method: "GET",
+      headers,
+    };
+
+    const response = await fetch(
+      `${process.env.GENUKA_URL}/${process.env.GENUKA_VERSION}/admin/orders?include=products&include=shop&include=customer&include=delivery&page=${currentPage}`,
+      requestOptions
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch Genuka orders");
+    }
+
+    const { data, meta } = (await response.json()) as {
+      data: OrderDTO[];
+      meta: { current_page: number; last_page: number };
+    };
+
+    allOrders.push(...data);
+    currentPage++;
+
+    hasNextPage = currentPage <= meta.last_page;
+  }
+
+  return allOrders;
+};
+
+export const upsertWooOrders = async (
+  wooApi: WooCommerceRestApi,
+  config: CompanyWithConfiguration,
+  orders: OrderDTO[]
+) => {
+  try {
     const headers = new Headers();
     headers.append("Accept", "application/json");
     headers.append("Content-Type", "application/json");
@@ -42,76 +113,79 @@ export const syncOrders = async (
       headers,
     };
 
-    const genukaOrders = await fetch(
-      `${process.env.GENUKA_URL}/${process.env.GENUKA_VERSION}/admin/orders?include=products&include=shop&include=customer&include=delivery`,
-      requestOptions
-    );
-
-    const { data } = (await genukaOrders.json()) as ResponseGenukaOrdersDto;
-
-    for (const genukaOrder of data.slice(0, 1)) {
-      const order = await fetch(
-        `${process.env.GENUKA_URL}/${process.env.GENUKA_VERSION}/admin/orders/${genukaOrder.id}`,
-        requestOptions
-      );
-
-      const data = await order.json();
-
-      if (data.metadata && data.metadata.woocommerceId) {
-        logger.info(
-          `La commande ${data.reference} existe deja, on doit juste mettre a jour`
+    for (const genukaOrder of orders) {
+      let res: any = null;
+      try {
+        const order = await fetch(
+          `${process.env.GENUKA_URL}/${process.env.GENUKA_VERSION}/admin/orders/${genukaOrder.id}`,
+          requestOptions
         );
 
-        const res = await updateWooOrder(wooApi, data);
+        const data = await order.json();
 
-        globalLogs.push({
-          type: "update",
-          module: "orders",
-          date: new Date(),
-          id: res.id,
-          statut: "success",
-          companyId: config.configuration!.companyId,
-        });
-      } else {
-        logger.info(`La commande n'existe pas encore`);
-        const res = await createWooOrder(wooApi, config, data);
-        const { products } = data;
-        const productsWithPriceAndQte = products.map(
-          mapGenukaProductToAddOtherProperties
+        if (data.metadata && data.metadata.woocommerceId) {
+          logger.info(
+            `Updating existing order ${data.reference} in WooCommerce`
+          );
+
+          res = await updateWooOrder(wooApi, data);
+
+          globalLogs.push({
+            type: "update",
+            module: "orders",
+            date: new Date(),
+            id: res.id,
+            statut: "success",
+            companyId: config.configuration!.companyId,
+          });
+        } else {
+          logger.info(`Creating a new order in WooCommerce`);
+          res = await createWooOrder(wooApi, config, data);
+          const { products } = data;
+          const productsWithPriceAndQte = products.map(
+            mapGenukaProductToAddOtherProperties
+          );
+          await updateGenukaOrder(
+            config,
+            { ...data, products: productsWithPriceAndQte },
+            res.id
+          );
+          globalLogs.push({
+            type: "update",
+            module: "products",
+            date: new Date(),
+            id: res.id,
+            statut: "success",
+            companyId: config.configuration!.companyId,
+          });
+        }
+      } catch (orderError) {
+        logger.error(
+          `Error processing order ${genukaOrder.id}. Rolling back changes.`,
+          orderError
         );
-        await updateGenukaOrder(
-          config,
-          { ...data, products: productsWithPriceAndQte },
-          res.id
-        );
-        globalLogs.push({
-          type: "update",
-          module: "products",
-          date: new Date(),
-          id: res.id,
-          statut: "success",
-          companyId: config.configuration!.companyId,
-        });
+        if (res) {
+          await rollbackChanges(wooApi, res.id);
+        } else {
+          await rollbackChanges(wooApi, genukaOrder.metadata.woocommerceId);
+        }
+        continue;
       }
     }
-
-    return true;
   } catch (error) {
-    logger.error("Une erreur s'est produite", error);
-
-    globalLogs.push({
-      type: "create",
-      module: "customers",
-      date: new Date(),
-      id: "N/A",
-      statut: "failed",
-      companyId: config.configuration!.companyId,
+    logger.error("An error occurred while upserting orders", error);
+    throw new Error("An error occurred while upserting orders", {
+      cause: error,
     });
-
-    throw new Error("Une erreur s'est produite", { cause: error });
   }
 };
 
+/**
+ * @param wooApi
+ * @param config
+ * @param order
+ * @returns
+ */
 const createWooOrder = async (
   wooApi: WooCommerceRestApi,
   config: CompanyWithConfiguration,
@@ -122,11 +196,11 @@ const createWooOrder = async (
 
     const { products } = order;
 
-    for (const product of products.slice(0, 1)) {
+    for (const product of products) {
       if (product.metadata) {
         if (!product.metadata.woocommerceId) {
           logger.debug(
-            "Le produit existe mais n'a pas de WooCommerce ID. Nous devons procéder à sa création."
+            "The product exists but does not have a WooCommerce ID. We need to create it."
           );
 
           const result = await upsertWooProduct(config, wooApi, [product]);
@@ -135,7 +209,7 @@ const createWooOrder = async (
             quantity: product.pivot.quantity,
           });
         } else {
-          logger.debug("Le produit existe déjà dans WooCommerce.");
+          logger.debug("The product already exists in WooCommerce.");
           const res = await wooApi.get(
             `products/${product.metadata.woocommerceId}`
           );
@@ -147,7 +221,7 @@ const createWooOrder = async (
         }
       } else {
         logger.debug(
-          "Le produit n'a pas de metadata. Nous devons le créer dans WooCommerce."
+          "The product has no metadata. We need to create it in WooCommerce."
         );
 
         const result = await upsertWooProduct(config, wooApi, [product]);
@@ -162,17 +236,27 @@ const createWooOrder = async (
       return res.data;
     }
   } catch (error) {
-    logger.error(
-      "Une erreur s'est produite lors de la creation de la commande",
-      error
-    );
-    throw new Error(
-      "Une erreur s'est produite lors de la creation de la commande",
-      { cause: error }
-    );
+    logger.error("An error occurred while creating the order", error);
+    globalLogs.push({
+      type: "create",
+      module: "orders",
+      date: new Date(),
+      id: "N/A",
+      statut: "failed",
+      companyId: config.configuration!.companyId,
+    });
+    throw new Error("An error occurred while creating the order", {
+      cause: error,
+    });
   }
 };
 
+/**
+ * @param config
+ * @param order
+ * @param woocommerceId
+ * @returns
+ */
 const updateGenukaOrder = async (
   config: CompanyWithConfiguration,
   order: GenukaOrderDto,
@@ -190,14 +274,12 @@ const updateGenukaOrder = async (
       woocommerceId,
     };
 
-    console.log("===================>", order.reference);
-
     const body = JSON.stringify({
       ...convertApiOrder(order),
       metadata: updatedMetadata,
     });
 
-    const res = await fetch(
+    const response = await fetch(
       `${process.env.GENUKA_URL}/${process.env.GENUKA_VERSION}/admin/orders/${order.id}`,
       {
         method: "PUT",
@@ -206,20 +288,33 @@ const updateGenukaOrder = async (
       }
     );
 
-    if (!res.ok) {
-      throw new Error(
-        "Une erreur s'est produite lors de la mise à jour des métadonnées",
-        { cause: res }
-      );
+    if (!response.ok) {
+      throw new Error("An error occurred while updating metadata", {
+        cause: response,
+      });
     }
 
-    return res.json();
+    return response.json();
   } catch (error) {
-    logger.error("Une erreur s'est produite", error);
-    throw new Error("Une erreur s'est produite", { cause: error });
+    logger.error("An error has occurred", error);
+    globalLogs.push({
+      type: "update",
+      module: "orders",
+      date: new Date(),
+      id: "N/A",
+      statut: "failed",
+      companyId: config.configuration!.companyId,
+    });
+    throw new Error("An error has occurred", { cause: error });
   }
 };
 
+/**
+ * updateWooOrder
+ * @param wooApi
+ * @param order
+ * @returns WooCommerData
+ */
 const updateWooOrder = async (
   wooApi: WooCommerceRestApi,
   order: GenukaOrderDto
@@ -234,5 +329,25 @@ const updateWooOrder = async (
   } catch (error) {
     logger.error("Une erreur s'est produite", error);
     throw new Error("Une erreur s'est produite", { cause: error });
+  }
+};
+
+export const finhisOrdersSync = async () => {
+  for (const global of globalLogs) {
+    await loggerService.insert(global);
+  }
+};
+
+const rollbackChanges = async (
+  wooApi: WooCommerceRestApi,
+  id: number | string
+) => {
+  try {
+    logger.info(`Rolling back order ${id} in WooCommerce`);
+    await wooApi.delete(`orders/${id}`, {
+      force: true,
+    });
+  } catch (error) {
+    logger.error(`Failed to rollback order ${id}`, error);
   }
 };

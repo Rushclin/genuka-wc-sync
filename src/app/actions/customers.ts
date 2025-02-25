@@ -42,8 +42,32 @@ export const syncCustomers = async (
     const { data } = (await response.json()) as ResponseGenukaCustomerDto;
 
     logger.info(`Retrieved ${data.length} customers from Genuka`);
+    await upsertWooCustomers(wooApi, config, data);
 
-    for (const genukaCustomer of data) {
+    return true;
+  } catch (error) {
+    logger.error("Une erreur s'est produite lors de l'UPSERT du client", error);
+
+    globalLogs.push({
+      type: "create",
+      module: "customers",
+      date: new Date(),
+      id: "N/A",
+      statut: "failed",
+      companyId: config.companyId,
+    });
+
+    throw new Error("Une erreur s'est produite", { cause: error });
+  }
+};
+
+export const upsertWooCustomers = async (
+  wooApi: WooCommerceRestApi,
+  config: Configuration,
+  customers: GenukaCustomerDto[]
+) => {
+  try {
+    for (const genukaCustomer of customers) {
       const customerToCreate =
         extractWooCustomerDtoInfoFromGenukaCustomer(genukaCustomer);
 
@@ -55,7 +79,7 @@ export const syncCustomers = async (
       if (existingCustomer.data.length === 1) {
         logger.info(`Customer ${genukaCustomer.email} already exists`);
         const { data } = existingCustomer;
-        
+
         await updateWooCustomer(wooApi, customerToCreate, data[0].id, config);
 
         globalLogs.push({
@@ -82,21 +106,15 @@ export const syncCustomers = async (
         companyId: config.companyId,
       });
     }
-
-    return true;
   } catch (error) {
-    logger.error(`${error}`);
+    logger.error(
+      "Une erreur s'est produite lors de l'UPSERT du customer",
+      error
+    );
 
-    globalLogs.push({
-      type: "create",
-      module: "customers",
-      date: new Date(),
-      id: "N/A",
-      statut: "failed",
-      companyId: config.companyId,
+    throw new Error("Une erreur s'est produite lors de l'UPSERT du customer", {
+      cause: error,
     });
-
-    throw new Error("Une erreur s'est produite", { cause: error });
   }
 };
 

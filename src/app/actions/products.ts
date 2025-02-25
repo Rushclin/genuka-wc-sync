@@ -55,40 +55,54 @@ export const upsertWooProduct = async (
 ) => {
   try {
     const results: any[] = [];
-    for (const genukaProduct of genukaProducts.slice(0, 2)) {
-      if (genukaProduct.metadata && genukaProduct.metadata.woocommerceId) {
-        logger.info(
-          `Product ${genukaProduct.id} already exist in Woo Commerce`
-        );
+    let res: any = null;
+    for (const genukaProduct of genukaProducts) {
+      try {
+        if (genukaProduct.metadata && genukaProduct.metadata.woocommerceId) {
+          logger.info(
+            `Product ${genukaProduct.id} already exist in Woo Commerce`
+          );
 
-        const res = await updateWooProduct(genukaProduct, wooApi);
-        globalLogs.push({
-          type: "update",
-          module: "products",
-          date: new Date(),
-          id: res.id,
-          statut: "success",
-          companyId: config.configuration!.companyId,
-        });
-        results.push(res);
-      } else {
-        logger.info(`Product ${genukaProduct.id} not exist in Woo Commerce`);
-        const res = await createWooProduct(genukaProduct, wooApi);
-        await updateGenukaProduct(genukaProduct, res.id, config);
-        globalLogs.push({
-          type: "create",
-          module: "products",
-          date: new Date(),
-          id: res.id,
-          statut: "success",
-          companyId: config.configuration!.companyId,
-        });
-        results.push(res);
+          res = await updateWooProduct(genukaProduct, wooApi);
+          globalLogs.push({
+            type: "update",
+            module: "products",
+            date: new Date(),
+            id: res.id,
+            statut: "success",
+            companyId: config.configuration!.companyId,
+          });
+          results.push(res);
+        } else {
+          logger.info(`Product ${genukaProduct.id} not exist in Woo Commerce`);
+          res = await createWooProduct(genukaProduct, wooApi);
+          await updateGenukaProduct(genukaProduct, res.id, config);
+          globalLogs.push({
+            type: "create",
+            module: "products",
+            date: new Date(),
+            id: res.id,
+            statut: "success",
+            companyId: config.configuration!.companyId,
+          });
+          results.push(res);
+        }
+      } catch (error) {
+        logger.error(
+          `Error processing order ${genukaProduct.id}. Rolling back changes.`,
+          error
+        );
+        if (res) {
+          await rollbackChanges(wooApi, res.id);
+        } else {
+          await rollbackChanges(wooApi, genukaProduct!.metadata!.woocommerceId);
+        }
+        continue;
       }
     }
     return results;
   } catch (error) {
-    logger.error(`${error}`);
+    logger.error("Une erreur s'est produite",error);
     globalLogs.push({
       type: "create",
       module: "products",
@@ -291,5 +305,19 @@ export const createWooAttributes = async (
 export const finhisProductSync = async () => {
   for (const global of globalLogs) {
     await loggerService.insert(global);
+  }
+};
+
+const rollbackChanges = async (
+  wooApi: WooCommerceRestApi,
+  id: number | string
+) => {
+  try {
+    logger.info(`Rolling back product ${id} in WooCommerce`);
+    await wooApi.delete(`products/${id}`, {
+      force: true,
+    });
+  } catch (error) {
+    logger.error(`Failed to rollback product ${id}`, error);
   }
 };
