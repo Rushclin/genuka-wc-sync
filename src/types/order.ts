@@ -10,6 +10,7 @@ interface GenukaOrderShippingDto {
   amount: number;
   status: string;
   address_id: string;
+  address?: GenukaAddressDto
 }
 
 interface GenukaOrderBillingDto {
@@ -19,10 +20,12 @@ interface GenukaOrderBillingDto {
   subtotal: number;
   address_id: string;
   treasury_account_id: string;
+  address?: GenukaAddressDto
 }
 
 interface Metadata {
   matchingMediaIds: [];
+  woocommerceId: number
 }
 
 interface GenukaShopDto {
@@ -93,7 +96,7 @@ export interface GenukaOrderDto {
     updated_at: string;
     user: null;
     address: GenukaAddressDto;
-    order: object; // etre recursif ??
+    order: object;
   };
   discounts: [];
   taxes: [];
@@ -111,7 +114,7 @@ interface WooOrderShippingAddressDto {
   country: string;
 }
 
-interface WooOrderLineItemDto {
+export interface WooOrderLineItemDto {
   product_id: number;
   variation_id?: number;
   quantity: number;
@@ -131,4 +134,172 @@ export interface WooOrderDto {
   shipping: WooOrderShippingAddressDto;
   line_items: WooOrderLineItemDto[];
   shipping_lines: WooOrderShippingLineDto[];
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+export interface OrderDTO {
+  id: string;
+  company_id: string;
+  shop_id: string;
+  user_id: string | null;
+  customer_id: string;
+  reference: string;
+  status: string;
+  currency: string;
+  amount: number;
+  source: string;
+  shipping: ShippingDTO;
+  billing: BillingDTO;
+  metadata: MetadataDTO;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  revenue_type: string;
+  credit_code: string;
+  debit_code: string;
+  state: number;
+  shipping_fee_id: string | null;
+  expires_at: string | null;
+  customer: CustomerDTO;
+  delivery: DeliveryDTO;
+  shipping_fee: number | null;
+  medias: any[];
+  private_medias: any[];
+  signature: string | null;
+  amount_due: number;
+}
+
+export interface ShippingDTO {
+  mode: string;
+  amount: number;
+  status: string;
+  address_id: string;
+}
+
+export interface BillingDTO {
+  total: number;
+  method: string;
+  status: string;
+  subtotal: number;
+  address_id: string;
+  treasury_account_id: string;
+}
+
+export interface MetadataDTO {
+  matchingMediaIds: string[];
+  woocommerceId: number
+}
+
+export interface CustomerDTO {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  gender: string | null;
+  metadata: any;
+  company_id: string;
+  created_at: string;
+  updated_at: string;
+  last_activity: string | null;
+  deleted_at: string | null;
+  birthdate: string | null;
+  type: string;
+  company_name: string | null;
+  preferred_language: string | null;
+  registration_number: string | null;
+  tax_number: string | null;
+  addresses: AddressDTO[];
+  default_address: AddressDTO | null;
+  billing_address: AddressDTO | null;
+  shipping_address: AddressDTO;
+}
+
+export interface AddressDTO {
+  id: string;
+  label: string | null;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  email: string | null;
+  company: string | null;
+  line1: string;
+  line2: string | null;
+  city: string;
+  state: string | null;
+  country: string;
+  postal_code: string;
+  latitude: number | null;
+  longitude: number | null;
+  is_primary: boolean;
+  is_billing: boolean;
+  is_shipping: boolean;
+  metadata: any;
+  addressable_type: string;
+  addressable_id: string;
+  company_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DeliveryDTO {
+  id: string;
+  order_id: string;
+  user_id: string | null;
+  company_id: string;
+  address_id: string;
+  status: string;
+  mode: string;
+  metadata: any;
+  starts_at: string | null;
+  ends_at: string | null;
+  scheduled_at: string;
+  tracking_number: string;
+  tracking_url: string | null;
+  created_at: string;
+  updated_at: string;
+  address: AddressDTO;
+  order: Partial<OrderDTO>;
 }

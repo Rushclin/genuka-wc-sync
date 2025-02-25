@@ -1,5 +1,9 @@
 import { GenukaCustomerDto, WooCustomerDto } from "@/types/customer";
-import { GenukaOrderDto, WooOrderDto } from "@/types/order";
+import {
+  GenukaOrderDto,
+  WooOrderDto,
+  WooOrderLineItemDto,
+} from "@/types/order";
 import {
   ProductDto,
   WooCommerceAttributeDto,
@@ -243,32 +247,33 @@ export const fromPrismaLogToGlobalLogDto = (input: Logger): GlobalLogs => {
 };
 
 export const mapGenukaOrderToWooOrder = (
-  input: GenukaOrderDto
+  input: GenukaOrderDto,
+  lineItems: WooOrderLineItemDto[]
 ): WooOrderDto => {
-
-  const shippingAdress = input.addresses.find(
+  const { customer } = input;
+  const shippingAdress = customer.addresses.find(
     (addr) => addr.id === input.shipping.address_id
   );
-  const billinggAdress = input.addresses.find(
+  const billingAdress = customer.addresses.find(
     (addr) => addr.id === input.billing.address_id
   );
 
   return {
     payment_method: input.billing.method,
     payment_method_title: input.billing.method,
-    set_paid: false,
+    set_paid: input.shipping.status === "pending" ? false : true,
     billing: {
-      city: billinggAdress?.city ?? "default Value",
-      state: billinggAdress?.state ?? "Default Value",
-      address_1: billinggAdress?.line1 ?? "Default Value",
-      address_2: billinggAdress?.line2 ?? "Default Value",
-      country: billinggAdress?.country ?? "Default Value",
-      first_name: billinggAdress?.first_name ?? "Default Value",
-      last_name: billinggAdress?.last_name ?? "Default Value",
-      postcode: billinggAdress?.postal_code ?? "Default Value",
-      company: billinggAdress?.company ?? "Default Value",
-      email: billinggAdress?.email ?? "Default Value",
-      phone: billinggAdress?.phone ?? "Default Value",
+      city: billingAdress?.city ?? "Default Value",
+      state: billingAdress?.state ?? "Default Value",
+      address_1: billingAdress?.line1 ?? "Default Value",
+      address_2: billingAdress?.line2 ?? "Default Value",
+      country: billingAdress?.country ?? "Default Value",
+      first_name: billingAdress?.first_name ?? "Default Value",
+      last_name: billingAdress?.last_name ?? "Default Value",
+      postcode: billingAdress?.postal_code ?? "Default Value",
+      company: billingAdress?.company ?? "Default Value",
+      email: billingAdress?.email ?? "john@gmail.com",
+      phone: billingAdress?.phone ?? "Default Value",
     },
     shipping: {
       address_1: shippingAdress?.line1 ?? "Default Value",
@@ -280,19 +285,83 @@ export const mapGenukaOrderToWooOrder = (
       last_name: shippingAdress?.last_name ?? "Default Name",
       postcode: shippingAdress?.postal_code ?? "Default Post Code",
     },
-    line_items: [
-      {
-        product_id: 0,
-        quantity: 0,
-        variation_id: 0,
-      },
-    ],
+    line_items: lineItems,
     shipping_lines: [
       {
-        method_id: "",
-        method_title: "",
-        total: "",
+        method_id: input.billing.method,
+        method_title: input.billing.method,
+        total: input.billing.total.toString(),
       },
     ],
+  };
+};
+
+export const mapGenukaProductToAddOtherProperties = (
+  input: ProductDto
+): ProductDto => {
+  return {
+    ...input,
+    price: input.pivot.price,
+    quantity: input.pivot.quantity,
+  };
+};
+
+
+export const convertApiOrder = (order: GenukaOrderDto): GenukaOrderDto => {
+  return {
+    ...order,
+    shop_id: order.shop?.id || order.shop_id,
+    customer: order.customer,
+    shop: order.shop || {},
+    products: (order.products || [])
+      .reduce((acc, product) => {
+        // Supprime les doublons
+        if (acc.some((p) => p.title === product.title)) return acc;
+        return [...acc, product];
+      }, [] as typeof order.products)
+      .map((p) => ({
+        ...p,
+        tmpId: `${p.id}-${p.pivot.variant_id}`,
+        product_id: p.id,
+        variant_id: p.pivot.variant_id,
+        title: p.title,
+        price: p.pivot.price,
+        quantity: p.pivot.quantity,
+        medias: p.medias,
+      })) || [],
+      shipping: {
+        ...order.shipping,
+        address: order.addresses?.find((a) => a.id === order.shipping.address_id) ?? {
+          line1: "Default value",
+          city: "Default value",
+          company: "Default value",
+          country: "Default value",
+          email: "default@gmail.com",
+          first_name: "default value",
+          label: "Default value"
+        }
+      },
+      billing: {
+        ...order.billing,
+        address: order.addresses?.find((a) => a.id === order.billing.address_id) 
+      }
+    // metadata: order.metadata || {
+    //   note: "",
+    // },
+    // shipping: {
+    //   address_id: null,
+    //   mode: "delivery",
+    //   amount: 0,
+    //   ...order.shipping,
+    //   address: order.addresses?.find((a) => a.id === order.shipping?.address_id),
+    // },
+    // billing: {
+    //   address_id: null,
+    //   address: {},
+    //   method: "cash",
+    //   status: "pending",
+    //   ...order.billing,
+    //   address: order.addresses?.find((a) => a.id === order.billing?.address_id),
+    // },
   };
 };

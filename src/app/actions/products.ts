@@ -54,7 +54,7 @@ export const upsertWooProduct = async (
   genukaProducts: ProductDto[]
 ) => {
   try {
-    const results: unknown[] = [];
+    const results: any[] = [];
     for (const genukaProduct of genukaProducts.slice(0, 2)) {
       if (genukaProduct.metadata && genukaProduct.metadata.woocommerceId) {
         logger.info(
