@@ -27,7 +27,6 @@ export const syncProduct = async (config: CompanyWithConfiguration) => {
     const products = await fetchAllGenukaProducts(config);
 
     await upsertWooProduct(config, wooApi, products);
-
   } catch (error) {
     logger.error(`${error}`);
     throw new Error("Une erreur s'est produite lors de la synchronisation", {
@@ -35,10 +34,6 @@ export const syncProduct = async (config: CompanyWithConfiguration) => {
     });
   }
 };
-
-
-
-
 
 const fetchAllGenukaProducts = async (
   config: CompanyWithConfiguration
@@ -81,8 +76,6 @@ const fetchAllGenukaProducts = async (
 
   return allProducts;
 };
-
-
 
 /**
  * Update or Create Woo Commerce product
@@ -144,7 +137,7 @@ export const upsertWooProduct = async (
     }
     return results;
   } catch (error) {
-    logger.error("Une erreur s'est produite",error);
+    logger.error("Une erreur s'est produite", error);
     globalLogs.push({
       type: "create",
       module: "products",
@@ -219,7 +212,7 @@ export const updateGenukaProduct = async (
   config: CompanyWithConfiguration
 ) => {
   try {
-    logger.info("Update Specifique metadatavproduct on Genuka");
+    logger.info("Update Specifique metadata product on Genuka");
 
     const headers = new Headers();
     headers.append("Accept", "application/json");

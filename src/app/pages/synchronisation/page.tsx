@@ -101,7 +101,7 @@ const SynchronisationPage = () => {
     const handlerSyncCustomers = async () => {
         setLoading(true)
 
-        syncCustomers(configuration)
+        syncCustomers(company)
             .then(async res => {
                 setLoading(false)
                 console.log({ res })

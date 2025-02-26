@@ -13,7 +13,7 @@ export interface GlobalLogs {
   date: Date;
   id: number | string;
   statut: "success" | "failed" | string;
-  companyId: string
+  companyId: string,
 }
 
 export class Logger {
