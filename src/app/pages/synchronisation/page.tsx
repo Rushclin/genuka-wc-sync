@@ -79,21 +79,17 @@ const SynchronisationPage = () => {
             toast({ description: "Une erreur s'est produite lors de la synchronisation", variant: "destructive" })
             setLoading(false)
         });
-        finhisProductSync()
+        await finhisProductSync()
     }
 
     const handlerSyncOrders = async () => {
         setLoading(true)
         syncOrders(company)
-            .then(re => {
-                console.log({ re })
+            .then(() => {
                 setLoading(false)
-
             })
-            .catch(err => {
-                console.log({ err })
+            .catch(() => {
                 setLoading(false)
-
             })
         await finhisOrdersSync()
     }
@@ -102,18 +98,14 @@ const SynchronisationPage = () => {
         setLoading(true)
 
         syncCustomers(company)
-            .then(async res => {
+            .then(() => {
                 setLoading(false)
-                console.log({ res })
-
             })
-            .catch(err => {
+            .catch(() => {
                 setLoading(false)
-
-                console.error(err)
             })
 
-        finhisCustomerSync()
+        await finhisCustomerSync()
     }
 
 

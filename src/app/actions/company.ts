@@ -15,12 +15,28 @@ export const retriveCompanny = async (
     });
 
     if (!company) {
-      throw new Error("La company n'existe pas", {cause: company});
+      throw new Error("La company n'existe pas", { cause: company });
     }
 
     return company;
   } catch (error) {
     console.error(error);
     throw new Error(`Une erreur s\'est produite `, { cause: error });
+  }
+};
+
+export const listCompanies = async (): Promise<CompanyWithConfiguration[]> => {
+  try {
+    return await prisma.company.findMany({
+      include: {
+        configuration: true,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    throw new Error(
+      `Une erreur s\'est produite lors de la recuperation des compagnies `,
+      { cause: error }
+    );
   }
 };
