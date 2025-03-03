@@ -13,14 +13,14 @@ cron.schedule(schedule, async () => {
     logger.debug(
       "On doit faire la synchronisation chez toutes les personnes qui ont installe"
     );
-    for (const company of companies) {
-      await syncCustomers(company);
-      await finhisCustomerSync();
-      await syncProduct(company);
-      await finhisProductSync();
-      await syncOrders(company);
-      await finhisOrdersSync();
-    }
+    // for (const company of companies) {
+    //   await syncCustomers(company);
+    //   await finhisCustomerSync();
+    //   await syncProduct(company);
+    //   await finhisProductSync();
+    //   await syncOrders(company);
+    //   await finhisOrdersSync();
+    // }
 
     console.log("✅ Synchronisation terminée !");
   } catch (error) {

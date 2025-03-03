@@ -4,7 +4,7 @@ import { CompanyWithConfiguration } from "@/types/company";
 import { GenukaOrderDto, OrderDTO, WooOrderLineItemDto } from "@/types/order";
 import logger, { GlobalLogs } from "@/utils/logger";
 import WooCommerceRestApi from "@woocommerce/woocommerce-rest-api";
-import { upsertWooProduct } from "./products";
+import { upsertWooProducts } from "./products";
 import {
   convertApiOrder,
   mapGenukaOrderToWooOrder,
@@ -203,7 +203,7 @@ const createWooOrder = async (
             "The product exists but does not have a WooCommerce ID. We need to create it."
           );
 
-          const result = await upsertWooProduct(config, wooApi, [product]);
+          const result = await upsertWooProducts(config, wooApi, [product]);
           lineItems.push({
             product_id: result[0].id,
             quantity: product.pivot.quantity,
@@ -224,7 +224,7 @@ const createWooOrder = async (
           "The product has no metadata. We need to create it in WooCommerce."
         );
 
-        const result = await upsertWooProduct(config, wooApi, [product]);
+        const result = await upsertWooProducts(config, wooApi, [product]);
         lineItems.push({
           product_id: result[0].id,
           quantity: product.pivot.quantity,

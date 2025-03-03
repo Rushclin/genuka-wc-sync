@@ -1,9 +1,9 @@
 "use server";
 
-import { extractWooProductDtoInfoFromGenukaProductDto } from "@/lib/utils";
+import { convertGenukaProductToWooCommerceProduct } from "@/lib/utils";
 import loggerService from "@/services/database/logger.service";
 import { CompanyWithConfiguration } from "@/types/company";
-import { ProductDto, VariantDto } from "@/types/product";
+import { Option, ProductDto } from "@/types/product";
 import logger, { GlobalLogs } from "@/utils/logger";
 import WooCommerceRestApi from "@woocommerce/woocommerce-rest-api";
 import slugify from "slugify";
@@ -11,42 +11,48 @@ import slugify from "slugify";
 const globalLogs: GlobalLogs[] = [];
 
 /**
- * @param {CompanyWithConfiguration} config
+ * Synchronize products from Genuka to WooCommerce
+ * @param {CompanyWithConfiguration} companyConfig - Configuration of the company
  */
-export const syncProduct = async (config: CompanyWithConfiguration) => {
+export const syncProducts = async (companyConfig: CompanyWithConfiguration) => {
   try {
-    logger.info("Init Genuka and Woo Commerce SDK");
-    const wooApi = new WooCommerceRestApi({
-      url: config.configuration!.apiUrl,
-      consumerKey: config.configuration!.consumerKey,
-      consumerSecret: config.configuration!.consumerSecret,
+    logger.info("Initializing Genuka and WooCommerce SDK");
+    const wooCommerceApi = new WooCommerceRestApi({
+      url: companyConfig.configuration!.apiUrl,
+      consumerKey: companyConfig.configuration!.consumerKey,
+      consumerSecret: companyConfig.configuration!.consumerSecret,
       version: "wc/v3",
       queryStringAuth: true,
     });
 
-    const products = await fetchAllGenukaProducts(config);
-
-    await upsertWooProduct(config, wooApi, products);
+    const genukaProducts = await fetchAllGenukaProducts(companyConfig);
+    await upsertWooProducts(companyConfig, wooCommerceApi, genukaProducts);
   } catch (error) {
-    logger.error(`${error}`);
-    throw new Error("Une erreur s'est produite lors de la synchronisation", {
+    logger.error(`Error during product synchronization: ${error}`);
+    throw new Error("An error occurred during synchronization", {
       cause: error,
     });
   }
 };
 
+/**
+ * Fetch all products from Genuka
+ * @param {CompanyWithConfiguration} companyConfig - Configuration of the company
+ * @returns {Promise<ProductDto[]>} - List of products
+ */
 const fetchAllGenukaProducts = async (
-  config: CompanyWithConfiguration
+  companyConfig: CompanyWithConfiguration
 ): Promise<ProductDto[]> => {
   const allProducts: ProductDto[] = [];
   let currentPage = 1;
   let hasNextPage = true;
 
-  const headers = new Headers();
-  headers.append("Accept", "application/json");
-  headers.append("Content-Type", "application/json");
-  headers.append("X-Company", `${config.configuration?.companyId}`);
-  headers.append("Authorization", `Bearer ${config.accessToken}`);
+  const headers = new Headers({
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    "X-Company": `${companyConfig.configuration?.companyId}`,
+    Authorization: `Bearer ${companyConfig.accessToken}`,
+  });
 
   while (hasNextPage) {
     const requestOptions = {
@@ -70,7 +76,6 @@ const fetchAllGenukaProducts = async (
 
     allProducts.push(...data);
     currentPage++;
-
     hasNextPage = currentPage <= meta.last_page;
   }
 
@@ -78,281 +83,384 @@ const fetchAllGenukaProducts = async (
 };
 
 /**
- * Update or Create Woo Commerce product
- * @param {CompanyWithConfiguration} config
- * @param {WooCommerceRestApi} wooApi
- * @param {ProductDto[]} genukaProducts
+ * Upsert products in WooCommerce
+ * @param {CompanyWithConfiguration} companyConfig - Configuration of the company
+ * @param {WooCommerceRestApi} wooCommerceApi - WooCommerce API instance
+ * @param {ProductDto[]} genukaProducts - List of products from Genuka
  */
-export const upsertWooProduct = async (
-  config: CompanyWithConfiguration,
-  wooApi: WooCommerceRestApi,
+export const upsertWooProducts = async (
+  companyConfig: CompanyWithConfiguration,
+  wooCommerceApi: WooCommerceRestApi,
   genukaProducts: ProductDto[]
 ) => {
   try {
     const results: any[] = [];
-    let res: any = null;
+    let createdOrUpdatedProduct: any = null;
+
     for (const genukaProduct of genukaProducts) {
       try {
         if (genukaProduct.metadata && genukaProduct.metadata.woocommerceId) {
           logger.info(
-            `Product ${genukaProduct.id} already exist in Woo Commerce`
+            `Product ${genukaProduct.title} already exists in WooCommerce`
           );
-
-          res = await updateWooProduct(genukaProduct, wooApi);
+          createdOrUpdatedProduct = await updateWooProduct(
+            genukaProduct,
+            wooCommerceApi
+          );
           globalLogs.push({
             type: "update",
             module: "products",
             date: new Date(),
-            id: res.id,
+            id: createdOrUpdatedProduct.id,
             statut: "success",
-            companyId: config.configuration!.companyId,
+            companyId: companyConfig.configuration!.companyId,
           });
-          results.push(res);
         } else {
-          logger.info(`Product ${genukaProduct.id} not exist in Woo Commerce`);
-          res = await createWooProduct(genukaProduct, wooApi);
-          await updateGenukaProduct(genukaProduct, res.id, config);
+          logger.info(
+            `Product ${genukaProduct.title} does not exist in WooCommerce`
+          );
+          createdOrUpdatedProduct = await createWooProduct(
+            genukaProduct,
+            wooCommerceApi
+          );
+          await updateGenukaProduct(
+            genukaProduct,
+            createdOrUpdatedProduct.id,
+            companyConfig
+          );
           globalLogs.push({
             type: "create",
             module: "products",
             date: new Date(),
-            id: res.id,
+            id: createdOrUpdatedProduct.id,
             statut: "success",
-            companyId: config.configuration!.companyId,
+            companyId: companyConfig.configuration!.companyId,
           });
-          results.push(res);
         }
+        results.push(createdOrUpdatedProduct);
       } catch (error) {
         logger.error(
-          `Error processing order ${genukaProduct.id}. Rolling back changes.`,
-          error
+          `Error processing product ${genukaProduct.title}: ${error}`
         );
-        if (res) {
-          await rollbackChanges(wooApi, res.id);
+        if (createdOrUpdatedProduct) {
+          await rollbackChanges(wooCommerceApi, createdOrUpdatedProduct.id);
         } else {
-          await rollbackChanges(wooApi, genukaProduct!.metadata!.woocommerceId);
+          await rollbackChanges(
+            wooCommerceApi,
+            genukaProduct.metadata!.woocommerceId
+          );
         }
-        continue;
       }
     }
     return results;
   } catch (error) {
-    logger.error("Une erreur s'est produite", error);
+    logger.error(`Error during product upsert: ${error}`);
     globalLogs.push({
       type: "create",
       module: "products",
       date: new Date(),
       id: "N/A",
       statut: "failed",
-      companyId: config.configuration!.companyId,
+      companyId: companyConfig.configuration!.companyId,
     });
-    throw new Error("Une erreur s'est produite lors de la synchronisation", {
+    throw new Error("An error occurred during product synchronization", {
       cause: error,
     });
   }
 };
 
+/**
+ * Create a product in WooCommerce
+ * @param {ProductDto} genukaProduct - Product data from Genuka
+ * @param {WooCommerceRestApi} wooCommerceApi - WooCommerce API instance
+ * @returns {Promise<any>} - Created product data
+ */
 export const createWooProduct = async (
   genukaProduct: ProductDto,
-  wooApi: WooCommerceRestApi
+  wooCommerceApi: WooCommerceRestApi
 ) => {
   try {
     const { variants } = genukaProduct;
-
-    const wooProduct = extractWooProductDtoInfoFromGenukaProductDto(
+    const wooProductData = convertGenukaProductToWooCommerceProduct(
       genukaProduct,
       []
     );
 
-    logger.info(`Create product in Woo Commerce ${wooProduct.name}`);
-    const { data } = await wooApi.post("products", wooProduct);
-    logger.info(`End create product in Woo Commerce ${wooProduct.name}`);
+    logger.info(`Creating product in WooCommerce: ${wooProductData.name}`);
+    const { data: createdProduct } = await wooCommerceApi.post(
+      "products",
+      wooProductData
+    )
+
+    logger.info(`Product created successfully: ${wooProductData.name}`);
 
     if (variants.length > 0) {
       logger.info(
-        `Create ${variants.length} of product ${genukaProduct.title}`
+        `Creating ${variants.length} variants for product: ${genukaProduct.title}`
       );
-      await createWooProductVariant(variants, data.id, wooApi);
+      await createWooProductVariants(
+        genukaProduct,
+        createdProduct.id,
+        wooCommerceApi
+      );
     }
 
-    return data;
+    return createdProduct;
   } catch (error) {
-    logger.error(`${error}`);
-    throw new Error("Une erreur s'est produite", { cause: error });
+    logger.error(`Error creating product: ${error}`);
+    throw new Error("An error occurred while creating the product", {
+      cause: error,
+    });
   }
 };
 
+/**
+ * Update a product in WooCommerce
+ * @param {ProductDto} genukaProduct - Product data from Genuka
+ * @param {WooCommerceRestApi} wooCommerceApi - WooCommerce API instance
+ * @returns {Promise<any>} - Updated product data
+ */
 export const updateWooProduct = async (
   genukaProduct: ProductDto,
-  wooApi: WooCommerceRestApi
+  wooCommerceApi: WooCommerceRestApi
 ) => {
   try {
-    logger.info(`Trying update ${genukaProduct.title} in Woo Commerce`);
-    const wooProduct = extractWooProductDtoInfoFromGenukaProductDto(
+    const { variants, metadata } = genukaProduct;
+    const wooProductData = convertGenukaProductToWooCommerceProduct(
       genukaProduct,
       []
     );
-    const { metadata } = genukaProduct;
-    const result = await wooApi.put(
-      `products/${metadata!.woocommerceId}`,
-      wooProduct
-    );
-    logger.info(`End updating product in Woo Commerce`);
 
-    return result.data;
+    logger.info(`Updating product in WooCommerce: ${genukaProduct.title}`);
+    const { data: updatedProduct } = await wooCommerceApi.put(
+      `products/${metadata!.woocommerceId}`,
+      wooProductData
+    );
+    logger.info(`Product updated successfully: ${genukaProduct.title}`);
+
+    if (variants.length > 0) {
+      logger.info(
+        `Updating ${variants.length} variants for product: ${genukaProduct.title}`
+      );
+      await createWooProductVariants(
+        genukaProduct,
+        updatedProduct.id,
+        wooCommerceApi
+      );
+    }
+
+    return updatedProduct;
   } catch (error) {
-    logger.error(`${error}`);
-    throw new Error("Une erreur s'est produite", { cause: error });
+    logger.error(`Error updating product: ${error}`);
+    throw new Error("An error occurred while updating the product", {
+      cause: error,
+    });
   }
 };
 
+/**
+ * Update product metadata in Genuka
+ * @param {ProductDto} genukaProduct - Product data from Genuka
+ * @param {number} woocommerceId - WooCommerce product ID
+ * @param {CompanyWithConfiguration} companyConfig - Configuration of the company
+ */
 export const updateGenukaProduct = async (
   genukaProduct: ProductDto,
   woocommerceId: number,
-  config: CompanyWithConfiguration
+  companyConfig: CompanyWithConfiguration
 ) => {
   try {
-    logger.info("Update Specifique metadata product on Genuka");
+    logger.info(
+      `Updating metadata for product ${genukaProduct.title} in Genuka`
+    );
 
-    const headers = new Headers();
-    headers.append("Accept", "application/json");
-    headers.append("Content-Type", "application/json");
-    headers.append("X-Company", `${config?.configuration!.companyId}`);
-    headers.append("Authorization", `Bearer ${config.accessToken}`);
+    const headers = new Headers({
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "X-Company": `${companyConfig.configuration!.companyId}`,
+      Authorization: `Bearer ${companyConfig.accessToken}`,
+    });
 
     const updatedMetadata = {
       ...genukaProduct.metadata,
       woocommerceId: woocommerceId,
     };
 
-    const body = JSON.stringify({
-      ...genukaProduct,
-      metadata: updatedMetadata,
-    });
-
-    const res = await fetch(
+    const response = await fetch(
       `${process.env.GENUKA_URL}/${process.env.GENUKA_VERSION}/admin/products/${genukaProduct.id}`,
       {
         method: "PUT",
         headers,
-        body,
+        body: JSON.stringify({
+          ...genukaProduct,
+          metadata: updatedMetadata,
+        }),
       }
     );
 
-    if (!res.ok) {
-      throw new Error(
-        "Une erreur s'est produite lors de la mise à jour des métadonnées",
-        { cause: res }
-      );
+    if (!response.ok) {
+      throw new Error("Failed to update product metadata in Genuka");
     }
 
-    return res.json();
-  } catch (error) {
-    logger.error(
-      "Une erreur s'est produite lors de la mise a jour du produit dans Genuka",
-      error
+    logger.info(
+      `Metadata updated successfully for product ${genukaProduct.title}`
     );
-    throw new Error(
-      "Une erreur s'est produite lors de la mise à jour des métadonnées",
-      { cause: error }
-    );
-  }
-};
-
-/**
- *
- * @param {VariantDto} variants
- * @param {number} wooProductId
- * @param {WooCommerceRestApi} wooApi
- */
-export const createWooProductVariant = async (
-  variants: VariantDto[],
-  wooProductId: number,
-  wooApi: WooCommerceRestApi
-) => {
-  try {
-    for (const variant of variants) {
-      let attributes: { id: number; options: string[] }[] = [];
-      const { options } = variant;
-
-      if (options.length) {
-        logger.info(
-          `La variante ${variant.title} dispose de ${options.length} attribut`
-        );
-        attributes = await createWooAttributes(wooApi, options);
-      }
-
-      logger.info(`Creation de la variante`);
-      await wooApi.post(`products/${wooProductId}/variations`, {
-        regular_price: variant.price.toString(),
-        attributes: [
-          ...attributes.map((a) => ({
-            id: a.id,
-            option: a.options.map((i) => i),
-          })),
-        ],
-      });
-      logger.info(`Fin de la creation de la variante`);
-    }
+    return response.json();
   } catch (error) {
-    logger.error("Erreur lors de la creation des variantes", error);
-    throw new Error("Une erreur est survenu lors de a creation des variantes", {
+    logger.error(`Error updating product metadata: ${error}`);
+    throw new Error("An error occurred while updating product metadata", {
       cause: error,
     });
   }
 };
 
-export const createWooAttributes = async (
-  wooApi: WooCommerceRestApi,
-  options: Array<{ id: string; title: string; values: string[] }>
+/**
+ * Create product variants in WooCommerce
+ * @param {ProductDto} genukaProduct - Product data from Genuka
+ * @param {number} wooProductId - WooCommerce product ID
+ * @param {WooCommerceRestApi} wooCommerceApi - WooCommerce API instance
+ */
+export const createWooProductVariants = async (
+  genukaProduct: ProductDto,
+  wooProductId: number,
+  wooCommerceApi: WooCommerceRestApi
 ) => {
+  try {
+    const { variants, options } = genukaProduct;
+
+    for (const variant of variants) {
+      const data = {
+        regular_price: variant.price.toString(),
+        attributes: [
+          ...options.map((option) => ({
+            name: option.title,
+            option: option.values[variant.position - 1],
+            variation: true,
+            visible: true
+          })),
+        ],
+        sku: variant.sku,
+        stock_quantity: variant.estimated_quantity ?? 1,
+        manage_stock: true,
+      }
+
+      logger.info(`Creating variant: ${variant.title}`);
+      await wooCommerceApi
+        .post(`products/${wooProductId}/variations`, data)
+        .then((response) =>
+          logger.info(`Variant created: ${JSON.stringify(response.data)}`)
+        )
+        .catch((error) =>
+          logger.error(`Error creating variant: ${error.response}`)
+        );
+    }
+  } catch (error) {
+    logger.error(`Error creating product variants: ${error}`);
+    throw new Error("An error occurred while creating product variants", {
+      cause: error,
+    });
+  }
+};
+
+/**
+ * Create attributes in WooCommerce
+ * @param {WooCommerceRestApi} wooCommerceApi - WooCommerce API instance
+ * @param {Option[]} options - List of options from Genuka
+ * @returns {Promise<{ id: number; options: string[] }[]>} - List of created attributes
+ */
+export const createWooAttributes = async (
+  wooCommerceApi: WooCommerceRestApi,
+  options: Option[]
+): Promise<{ id: number; options: string[] }[]> => {
   const attributes: { id: number; options: string[] }[] = [];
 
   try {
     for (const option of options) {
       if (!option) {
-        logger.debug("Pas d'option");
-        break;
+        logger.debug("Skipping empty option");
+        continue;
       }
-      logger.info(`Creation de l'attribut ${option.title}`);
-      // On doit creer les attributs de WooCommerce ici, option dans Genuka
-      const genukaAttribute = await wooApi.post(`products/attributes`, {
-        name: option.title,
-        slug: slugify(option.title, { replacement: "_" }),
-        type: "select",
-        order_by: "menu_order",
-        has_archives: true,
-      });
-      attributes.push({ id: genukaAttribute.id, options: option.values });
-      logger.info(`Fin de la creation de l'attribut ${option.title}`);
+
+      const slug = slugify(option.title, { replacement: "_" });
+      logger.info(`Creating attribute: ${option.title}`);
+
+      const existingAttribute = await getWooAttributeBySlug(
+        wooCommerceApi,
+        slug
+      );
+      if (existingAttribute) {
+        attributes.push({ id: existingAttribute.id, options: option.values });
+      } else {
+        const newAttribute = await wooCommerceApi.post("products/attributes", {
+          name: option.title,
+          slug,
+          type: "select",
+          order_by: "menu_order",
+          has_archives: false,
+        });
+        attributes.push({ id: newAttribute.id, options: option.values });
+      }
+      logger.info(`Attribute created successfully: ${option.title}`);
     }
 
     return attributes;
   } catch (error) {
-    logger.error(
-      "Une erreur s'est produite lors de la creation des attributs",
-      error
-    );
-    throw new Error("Une erreur s'est produite", { cause: error });
+    logger.error(`Error creating attributes: ${error}`);
+    throw new Error("An error occurred while creating attributes", {
+      cause: error,
+    });
   }
 };
 
-export const finhisProductSync = async () => {
-  for (const global of globalLogs) {
-    await loggerService.insert(global);
+/**
+ * Fetch WooCommerce attribute by slug
+ * @param {WooCommerceRestApi} wooCommerceApi - WooCommerce API instance
+ * @param {string} slug - Attribute slug
+ * @returns {Promise<any>} - Attribute data
+ */
+const getWooAttributeBySlug = async (
+  wooCommerceApi: WooCommerceRestApi,
+  slug: string
+): Promise<any> => {
+  try {
+    logger.info(`Fetching WooCommerce attribute with slug: ${slug}`);
+    const response = await wooCommerceApi.get("products/attributes", { slug });
+
+    if (response.data.length === 0) {
+      return null;
+    }
+
+    return response.data[0];
+  } catch (error) {
+    logger.error(`Error fetching attribute: ${error}`);
+    throw new Error("Failed to fetch WooCommerce attribute", {
+      cause: error,
+    });
   }
 };
 
+/**
+ * Rollback changes in WooCommerce
+ * @param {WooCommerceRestApi} wooCommerceApi - WooCommerce API instance
+ * @param {number | string} productId - Product ID to delete
+ */
 const rollbackChanges = async (
-  wooApi: WooCommerceRestApi,
-  id: number | string
+  wooCommerceApi: WooCommerceRestApi,
+  productId: number | string
 ) => {
   try {
-    logger.info(`Rolling back product ${id} in WooCommerce`);
-    await wooApi.delete(`products/${id}`, {
-      force: true,
-    });
+    logger.info(`Rolling back product ${productId} in WooCommerce`);
+    await wooCommerceApi.delete(`products/${productId}`, { force: true });
   } catch (error) {
-    logger.error(`Failed to rollback product ${id}`, error);
+    logger.error(`Failed to rollback product ${productId}: ${error}`);
+  }
+};
+
+/**
+ * Finalize product synchronization
+ */
+export const finalizeProductSync = async () => {
+  for (const log of globalLogs) {
+    await loggerService.insert(log);
   }
 };

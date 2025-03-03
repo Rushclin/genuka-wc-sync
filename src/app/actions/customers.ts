@@ -23,20 +23,6 @@ export const syncCustomers = async (
       queryStringAuth: true,
     });
 
-    // // Retrieve customers
-    // const response = await fetch(
-    //   `${process.env.GENUKA_URL}/${process.env.GENUKA_VERSION}/admin/customers?page=1&limit=10&filter=&sort=-orders_sum_amount&sort=-orders_count&include=orders_sum_amount&include=ordersCount`,
-    //   {
-    //     method: "GET",
-    //     headers: {
-    //       "Content-Type": "application/json",
-    //       "X-API-Key": config.apiKey,
-    //       "X-Company": config.companyId,
-    //     },
-    //   }
-    // );
-
-    // const { data } = (await response.json()) as ResponseGenukaCustomerDto;
     const data = await fetchAllGenukaCusomers(config);
 
     logger.info(`Retrieved ${data.length} customers from Genuka`);
@@ -132,6 +118,7 @@ export const upsertWooCustomers = async (
         }
 
         result = await createWooCustomer(wooApi, config.configuration!, customerToCreate);
+
         // Pas obligé, car la vérification se fait avec le mail qui est unique
         // await updateGenukaCustomer(config, genukaCustomer, result.id);
       } catch (error) {

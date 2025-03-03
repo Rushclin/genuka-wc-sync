@@ -6,7 +6,7 @@ import React, { useEffect, useState } from 'react'
 import { columns } from './columns';
 import { DataTable } from './data-table';
 import useConfiguration from '@/hooks/use-configuration';
-import { finhisProductSync, syncProduct } from '@/app/actions/products';
+import { finalizeProductSync, syncProducts } from '@/app/actions/products';
 import { useToast } from '@/hooks/use-toast';
 import Spinner from '@/components/ui/spinner';
 import { finhisCustomerSync, syncCustomers } from '@/app/actions/customers';
@@ -73,13 +73,13 @@ const SynchronisationPage = () => {
 
     const handlerSyncProducts = async () => {
         setLoading(true)
-        syncProduct(company).then(async () => {
+        syncProducts(company).then(async () => {
             setLoading(false)
         }).catch(() => {
             toast({ description: "Une erreur s'est produite lors de la synchronisation", variant: "destructive" })
             setLoading(false)
         });
-        await finhisProductSync()
+        await finalizeProductSync()
     }
 
     const handlerSyncOrders = async () => {

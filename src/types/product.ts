@@ -74,7 +74,7 @@ export interface VariantDto extends PersistingObject {
 interface ProductvariantDto extends ProductDto {
   stocks: StockDto[];
 }
-interface Option extends PersistingObject {
+export interface Option extends PersistingObject {
   title: string;
   position: number;
   values: string[];
@@ -156,7 +156,7 @@ export interface ProductDto extends PersistingObject {
     product_id: string;
     quantity: number;
     variant_id: string;
-    metadata?: null
+    metadata?: null;
   };
 
   price?: number;
@@ -330,4 +330,10 @@ export interface WooCommercerProductCreate {
   short_description: string;
   categories: { id: number }[];
   images: { id: number } | { src: string }[];
+  attributes: {
+    name: string;
+    position: number;
+    visible: boolean;
+    options: string[];
+  }[];
 }
