@@ -9,7 +9,7 @@ import useConfiguration from '@/hooks/use-configuration';
 import { finalizeProductSync, syncProducts } from '@/app/actions/products';
 import { useToast } from '@/hooks/use-toast';
 import Spinner from '@/components/ui/spinner';
-import { finhisCustomerSync, syncCustomers } from '@/app/actions/customers';
+import { finalizeSyncLogs, syncCustomers } from '@/app/actions/customers';
 import { GlobalLogs } from '@/utils/logger';
 import { retrieveGlobalLogs } from '@/app/actions/config';
 import { fromPrismaLogToGlobalLogDto } from '@/lib/utils';
@@ -105,7 +105,7 @@ const SynchronisationPage = () => {
                 setLoading(false)
             })
 
-        await finhisCustomerSync()
+        await finalizeSyncLogs()
     }
 
 

@@ -68,8 +68,12 @@ export const extractWooCustomerDtoInfoFromGenukaCustomer = (
   input: GenukaCustomerDto
 ): WooCustomerDto => {
   const { addresses } = input;
-
-  const defaultAddress = addresses.length > 0 ? addresses[0] : null;
+  const shippingAdress = addresses.find(
+    (addr) => addr.addressable_id === input.shipping_address?.addressable_id
+  );
+  const billingAdress = addresses.find(
+    (addr) => addr.addressable_id === input.billing_address?.addressable_id
+  );
 
   return {
     email: input.email,
@@ -77,62 +81,28 @@ export const extractWooCustomerDtoInfoFromGenukaCustomer = (
     last_name: input.last_name,
     username: input.email,
     billing: {
-      first_name:
-        input.billing_address?.first_name ?? defaultAddress?.first_name ?? "",
-      last_name:
-        input.billing_address?.last_name ?? defaultAddress?.last_name ?? "",
-      company:
-        input.billing_address?.company ??
-        defaultAddress?.company ??
-        "Default company",
-      address_1: "Default address",
-      address_2: "Default address",
-      city:
-        input.billing_address?.city ?? defaultAddress?.city ?? "Default City",
-      state:
-        input.billing_address?.state ??
-        defaultAddress?.state ??
-        "Default State",
-      postcode:
-        input.billing_address?.postal_code ??
-        defaultAddress?.postal_code ??
-        "Default Post Code",
-      country:
-        input.billing_address?.country ??
-        defaultAddress?.country ??
-        "Default Country",
-      email:
-        input.billing_address?.email ??
-        defaultAddress?.email ??
-        "doe@gmail.com",
-      phone:
-        input.billing_address?.phone ?? defaultAddress?.phone ?? "0000000000",
+      city: billingAdress?.city ?? "Default Value",
+      state: billingAdress?.state ?? "Default Value",
+      address_1: billingAdress?.line1 ?? "Default Value",
+      address_2: billingAdress?.line2 ?? "Default Value",
+      country: billingAdress?.country ?? "Default Value",
+      first_name: billingAdress?.first_name ?? "Default Value",
+      last_name: billingAdress?.last_name ?? "Default Value",
+      postcode: billingAdress?.postal_code ?? "Default Value",
+      company: billingAdress?.company ?? "Default Value",
+      email: billingAdress?.email ?? "john@gmail.com",
+      phone: billingAdress?.phone ?? "Default Value",
     },
     shipping: {
-      first_name:
-        input.shipping_address?.first_name ?? defaultAddress?.first_name ?? "",
-      last_name:
-        input.shipping_address?.last_name ?? defaultAddress?.last_name ?? "",
-      company:
-        input.shipping_address?.company ??
-        defaultAddress?.company ??
-        "Default Company",
-      address_1: "Default address",
-      address_2: "Default address",
-      city:
-        input.shipping_address?.city ?? defaultAddress?.city ?? "Default City",
-      state:
-        input.shipping_address?.state ??
-        defaultAddress?.state ??
-        "Default State",
-      postcode:
-        input.shipping_address?.postal_code ??
-        defaultAddress?.postal_code ??
-        "Default Post Code",
-      country:
-        input.shipping_address?.country ??
-        defaultAddress?.country ??
-        "Default Country",
+      address_1: shippingAdress?.line1 ?? "Default Value",
+      city: shippingAdress?.city ?? "Default City",
+      state: shippingAdress?.state ?? "Default State",
+      address_2: shippingAdress?.line2 ?? "Default Line",
+      country: shippingAdress?.country ?? "Default Country",
+      first_name: shippingAdress?.first_name ?? "Default Name",
+      last_name: shippingAdress?.last_name ?? "Default Name",
+      postcode: shippingAdress?.postal_code ?? "Default Post Code",
+      company: shippingAdress?.company ?? "Default Company",
     },
   };
 };

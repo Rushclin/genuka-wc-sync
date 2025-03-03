@@ -8,14 +8,19 @@ import WooCommerceRestApi from "@woocommerce/woocommerce-rest-api";
 import loggerService from "../../services/database/logger.service";
 import { CompanyWithConfiguration } from "@/types/company";
 
-const globalLogs: GlobalLogs[] = [];
+const syncLogs: GlobalLogs[] = [];
 
+/**
+ * Synchronize customers from Genuka to WooCommerce
+ * @param config Company configuration with API credentials
+ * @returns Promise<boolean> indicating success or failure
+ */
 export const syncCustomers = async (
   config: CompanyWithConfiguration
 ): Promise<boolean> => {
   try {
-    logger.debug("Init Woo Commerce and Genuka SDK");
-    const wooApi = new WooCommerceRestApi({
+    logger.debug("Initializing WooCommerce and Genuka SDK");
+    const wooCommerceApi = new WooCommerceRestApi({
       url: config.configuration!.apiUrl,
       consumerKey: config.configuration!.consumerKey,
       consumerSecret: config.configuration!.consumerSecret,
@@ -23,29 +28,28 @@ export const syncCustomers = async (
       queryStringAuth: true,
     });
 
-    const data = await fetchAllGenukaCusomers(config);
+    const genukaCustomers = await fetchAllGenukaCustomers(config);
 
-    logger.info(`Retrieved ${data.length} customers from Genuka`);
-    await upsertWooCustomers(wooApi, config, data);
+    logger.info(`Retrieved ${genukaCustomers.length} customers from Genuka`);
+    await syncCustomersToWooCommerce(wooCommerceApi, config, genukaCustomers);
 
     return true;
   } catch (error) {
-    logger.error("Une erreur s'est produite lors de l'UPSERT du client", error);
+    logger.error("Error occurred during customer synchronization", error);
 
-    globalLogs.push({
-      type: "create",
-      module: "customers",
-      date: new Date(),
-      id: "N/A",
-      statut: "failed",
-      companyId: config.configuration!.companyId,
-    });
-
-    throw new Error("Une erreur s'est produite", { cause: error });
+    throw new Error("Customer synchronization failed", { cause: error });
+  } finally {
+    // Save all logs at the end of the process
+    await finalizeSyncLogs();
   }
 };
 
-const fetchAllGenukaCusomers = async (
+/**
+ * Fetch all customers from Genuka API with pagination
+ * @param config Company configuration with authentication details
+ * @returns Promise<GenukaCustomerDto[]> List of customers from Genuka
+ */
+const fetchAllGenukaCustomers = async (
   config: CompanyWithConfiguration
 ): Promise<GenukaCustomerDto[]> => {
   const allCustomers: GenukaCustomerDto[] = [];
@@ -65,12 +69,12 @@ const fetchAllGenukaCusomers = async (
     };
 
     const response = await fetch(
-      `${process.env.GENUKA_URL}/${process.env.GENUKA_VERSION}/admin/customers?page=${currentPage}`,
+      `${process.env.GENUKA_URL}/${process.env.GENUKA_VERSION}/admin/customers?page=${currentPage}&anonymous=false`,
       requestOptions
     );
 
     if (!response.ok) {
-      throw new Error("Failed to fetch Genuka customers");
+      throw new Error(`Failed to fetch Genuka customers: ${response.statusText}`);
     }
 
     const { data, meta } = (await response.json()) as {
@@ -87,80 +91,88 @@ const fetchAllGenukaCusomers = async (
   return allCustomers;
 };
 
-export const upsertWooCustomers = async (
-  wooApi: WooCommerceRestApi,
+/**
+ * Process Genuka customers and sync them to WooCommerce
+ * @param wooCommerceApi WooCommerce API client
+ * @param config Company configuration
+ * @param customers List of Genuka customers to sync
+ */
+export const syncCustomersToWooCommerce = async (
+  wooCommerceApi: WooCommerceRestApi,
   config: CompanyWithConfiguration,
   customers: GenukaCustomerDto[]
 ) => {
   try {
-    let result: any = null;
     for (const genukaCustomer of customers) {
+      let syncResult = null;
       try {
-        const customerToCreate =
-          extractWooCustomerDtoInfoFromGenukaCustomer(genukaCustomer);
+        const wooCustomerData = extractWooCustomerDtoInfoFromGenukaCustomer(genukaCustomer);
 
-        // Check if customer already exists
-        const existingCustomer = await wooApi.get(
-          `customers/?email=${genukaCustomer.email}&role=all`
+        // Check if customer already exists in WooCommerce by email
+        const existingCustomersResponse = await wooCommerceApi.get(
+          `customers/?email=${encodeURIComponent(genukaCustomer.email)}&role=all`
         );
 
-        if (existingCustomer.data.length === 1) {
-          logger.info(`Customer ${genukaCustomer.email} already exists`);
-          const { data } = existingCustomer;
+        if (existingCustomersResponse.data && existingCustomersResponse.data.length > 0) {
+          logger.info(`Customer with email ${genukaCustomer.email} already exists in WooCommerce`);
+          const existingCustomerId = existingCustomersResponse.data[0].id;
 
-          result = await updateWooCustomer(
-            wooApi,
-            customerToCreate,
-            data[0].id,
+          syncResult = await updateWooCommerceCustomer(
+            wooCommerceApi,
+            wooCustomerData,
+            existingCustomerId,
             config.configuration!
           );
-          continue;
+        } else {
+          // Customer doesn't exist, create a new one
+          syncResult = await createWooCommerceCustomer(
+            wooCommerceApi, 
+            config.configuration!, 
+            wooCustomerData
+          );
+          
+          // Optional: Update Genuka customer with WooCommerce ID
+          // await updateGenukaCustomerWithWooId(config, genukaCustomer, syncResult.id);
         }
-
-        result = await createWooCustomer(wooApi, config.configuration!, customerToCreate);
-
-        // Pas obligé, car la vérification se fait avec le mail qui est unique
-        // await updateGenukaCustomer(config, genukaCustomer, result.id);
       } catch (error) {
         logger.error(
-          `Error processing order ${genukaCustomer.id}. Rolling back changes.`,
+          `Error processing customer ${genukaCustomer.email}. Attempting rollback.`,
           error
         );
-        if (result) {
-          await rollbackChanges(wooApi, result.id);
-        } 
-        // else {
-        //   await rollbackChanges(
-        //     wooApi,
-        //     genukaCustomer.metadata!.woocommerceId
-        //   );
-        // }
+        
+        if (syncResult && syncResult.id) {
+          await rollbackCustomerChanges(wooCommerceApi, syncResult.id);
+        }
+        // Continue with the next customer instead of stopping the entire process
         continue;
       }
     }
   } catch (error) {
-    logger.error(
-      "Une erreur s'est produite lors de l'UPSERT du customer",
-      error
-    );
-
-    throw new Error("Une erreur s'est produite lors de l'UPSERT du customer", {
+    logger.error("Error during WooCommerce customer synchronization", error);
+    throw new Error("WooCommerce customer synchronization failed", {
       cause: error,
     });
   }
 };
 
-const createWooCustomer = async (
-  wooApi: WooCommerceRestApi,
+/**
+ * Create a new customer in WooCommerce
+ * @param wooCommerceApi WooCommerce API client
+ * @param config Configuration with company ID
+ * @param customer Customer data to create
+ * @returns Created customer data
+ */
+const createWooCommerceCustomer = async (
+  wooCommerceApi: WooCommerceRestApi,
   config: Configuration,
   customer: WooCustomerDto
 ) => {
   try {
-    logger.debug(`Trying to create customer ${customer.email}`);
-    const res = await wooApi.post("customers", customer);
-    logger.debug(`Finished creating customer ${customer.email}`);
+    logger.debug(`Creating customer with email: ${customer.email}`);
+    const response = await wooCommerceApi.post("customers", customer);
+    logger.debug(`Successfully created customer: ${customer.email}`);
 
-    globalLogs.push({
+    syncLogs.push({
       type: "create",
       module: "customers",
       date: new Date(),
@@ -168,46 +180,47 @@ const createWooCustomer = async (
       statut: "success",
       companyId: config.companyId,
     });
-    return res.data;
+    
+    return response.data;
   } catch (error) {
     logger.error(
-      "Une erreur s'est produite lors de l'UPSERT du customer",
+      `Failed to create customer with email: ${customer.email}`,
       error
     );
-    globalLogs.push({
+    
+    syncLogs.push({
       type: "create",
       module: "customers",
       date: new Date(),
       id: customer.email,
-      statut: "failled",
+      statut: "failed",
       companyId: config.companyId,
     });
 
-    throw new Error("Une erreur s'est produite lors de l'UPSERT du customer", {
-      cause: error,
-    });
+    throw new Error("Customer creation failed", { cause: error });
   }
 };
 
 /**
- * Update Woo Customer with woocommerceId
- * @param {WooCommerceRestApi} wooApi
- * @param {WooCustomerDto} wooCustomer
- * @param {number} woocommerceId
- * @param {config} Configuration
+ * Update an existing customer in WooCommerce
+ * @param wooCommerceApi WooCommerce API client
+ * @param wooCustomer Updated customer data
+ * @param woocommerceId WooCommerce customer ID
+ * @param config Configuration with company ID
+ * @returns Updated customer data
  */
-const updateWooCustomer = async (
-  wooApi: WooCommerceRestApi,
+const updateWooCommerceCustomer = async (
+  wooCommerceApi: WooCommerceRestApi,
   wooCustomer: WooCustomerDto,
   woocommerceId: number,
   config: Configuration
 ) => {
   try {
-    logger.debug(`Trying to update ${wooCustomer.email}`);
-    const res = await wooApi.put(`customers/${woocommerceId}`, wooCustomer);
-    logger.debug(`Finished updating ${wooCustomer.email}`);
+    logger.debug(`Updating customer: ${wooCustomer.email}`);
+    const response = await wooCommerceApi.put(`customers/${woocommerceId}`, wooCustomer);
+    logger.debug(`Successfully updated customer: ${wooCustomer.email}`);
 
-    globalLogs.push({
+    syncLogs.push({
       type: "update",
       module: "customers",
       date: new Date(),
@@ -216,14 +229,14 @@ const updateWooCustomer = async (
       companyId: config.companyId,
     });
 
-    return res.data;
+    return response.data;
   } catch (error) {
     logger.error(
-      "Une erreur s'est produite lors de la mise a jour du customer",
+      `Failed to update customer: ${wooCustomer.email}`,
       error
     );
 
-    globalLogs.push({
+    syncLogs.push({
       type: "update",
       module: "customers",
       date: new Date(),
@@ -232,18 +245,18 @@ const updateWooCustomer = async (
       companyId: config.companyId,
     });
 
-    throw new Error("Une erreur s'est produite", { cause: error });
+    throw new Error("Customer update failed", { cause: error });
   }
 };
 
 /**
- * Update Genuka Customer with woocommerceId
- * @param {Configuration} config
- * @param {GenukaCustomerDto} genukaCustomer
- * @param {number} woocommerceId
+ * Update a Genuka customer with WooCommerce ID
+ * @param config Company configuration
+ * @param genukaCustomer Original Genuka customer
+ * @param woocommerceId WooCommerce customer ID
+ * @returns Boolean indicating success
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const updateGenukaCustomer = async (
+const updateGenukaCustomerWithWooId = async (
   config: CompanyWithConfiguration,
   genukaCustomer: GenukaCustomerDto,
   woocommerceId: number
@@ -274,10 +287,10 @@ const updateGenukaCustomer = async (
     );
 
     if (!response.ok) {
-      throw new Error("Une erreur s'est produite", { cause: response });
+      throw new Error(`Failed to update Genuka customer: ${response.statusText}`);
     }
 
-    globalLogs.push({
+    syncLogs.push({
       type: "update",
       module: "customers",
       date: new Date(),
@@ -288,9 +301,9 @@ const updateGenukaCustomer = async (
 
     return true;
   } catch (error) {
-    logger.error(`${error}`);
+    logger.error(`Failed to update Genuka customer metadata: ${error}`);
 
-    globalLogs.push({
+    syncLogs.push({
       type: "update",
       module: "customers",
       date: new Date(),
@@ -299,25 +312,36 @@ const updateGenukaCustomer = async (
       companyId: config.configuration!.companyId,
     });
 
-    throw new Error("Une erreur s'est produite", { cause: error });
+    throw new Error("Genuka customer update failed", { cause: error });
   }
 };
 
-export const finhisCustomerSync = async () => {
-  for (const global of globalLogs) {
-    await loggerService.insert(global);
+/**
+ * Save all collected logs to the database
+ */
+export const finalizeSyncLogs = async () => {
+  for (const logEntry of syncLogs) {
+    await loggerService.insert(logEntry);
   }
+  // Clear logs after saving
+  syncLogs.length = 0;
 };
 
-const rollbackChanges = async (
-  wooApi: WooCommerceRestApi,
+/**
+ * Rollback changes by deleting a customer in case of error
+ * @param wooCommerceApi WooCommerce API client
+ * @param id Customer ID to delete
+ */
+const rollbackCustomerChanges = async (
+  wooCommerceApi: WooCommerceRestApi,
   id: number | string
 ) => {
   try {
     logger.info(`Rolling back customer ${id} in WooCommerce`);
-    await wooApi.delete(`customers/${id}`, {
+    await wooCommerceApi.delete(`customers/${id}`, {
       force: true,
     });
+    logger.info(`Successfully rolled back customer ${id}`);
   } catch (error) {
     logger.error(`Failed to rollback customer ${id}`, error);
   }
