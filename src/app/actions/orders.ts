@@ -103,7 +103,7 @@ export const upsertWooCommerceOrders = async (
       headers,
     };
 
-    for (const genukaOrder of orders.slice(0, 10)) {
+    for (const genukaOrder of orders) {
       let res: any = null;
       try {
         const order = await fetch(
@@ -118,7 +118,7 @@ export const upsertWooCommerceOrders = async (
             `Updating existing order ${data.reference} in WooCommerce`
           );
 
-          res = await updateWooOrder(wooApi, data, config);
+          res = await updateWooCommerceOrder(wooApi, data, config);
 
           globalLogs.push({
             type: "update",
@@ -329,12 +329,12 @@ const updateGenukaOrder = async (
 };
 
 /**
- * updateWooOrder
+ * updateWooCommerceOrder
  * @param wooApi
  * @param order
  * @returns WooCommerData
  */
-const updateWooOrder = async (
+export const updateWooCommerceOrder = async (
   wooApi: WooCommerceRestApi,
   order: GenukaOrderDto,
   config: CompanyWithConfiguration

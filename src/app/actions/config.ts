@@ -18,8 +18,26 @@ export const saveConfiguration = async (
   }
 };
 
+// export const retrieveConfiguration = async (
+//   companyId: string
+// ): Promise<CompanyWithConfiguration> => {
+//   try {
+//     return prisma.configuration.findFirst({
+//       where: {
+//         companyId,
+//       },
+//       include: {
+//         company: true,
+//       },
+//     });
+//   } catch (error) {
+//     throw new Error("Une erreur s'est produite", { cause: error });
+//   }
+// };
 
-export const retrieveGlobalLogs = async (companyId: string): Promise<Logger[]> => {
+export const retrieveGlobalLogs = async (
+  companyId: string
+): Promise<Logger[]> => {
   try {
     return prisma.logger.findMany({
       where: {
@@ -29,4 +47,4 @@ export const retrieveGlobalLogs = async (companyId: string): Promise<Logger[]> =
   } catch (error) {
     throw new Error("Une erreur s'est produite", { cause: error });
   }
-}
+};

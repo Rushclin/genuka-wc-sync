@@ -13,6 +13,9 @@ export class CompanyDBService {
   async findByCompanyId(id: string) {
     return prisma.company.findUnique({
       where: { id },
+      include: {
+        configuration: true,
+      },
     });
   }
 
