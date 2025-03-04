@@ -101,14 +101,16 @@ export const syncCustomersToWooCommerce = async (
   wooCommerceApi: WooCommerceRestApi,
   config: CompanyWithConfiguration,
   customers: GenukaCustomerDto[]
-) => {
+): Promise<Array<{ email: string; wooCustomerId: number; status: "created" | "updated" | string}>> => {
+  const syncResults = []; // Tableau pour stocker les résultats de synchronisation
+
   try {
     for (const genukaCustomer of customers) {
       let syncResult = null;
       try {
         const wooCustomerData = extractWooCustomerDtoInfoFromGenukaCustomer(genukaCustomer);
 
-        // Check if customer already exists in WooCommerce by email
+        // Vérifier si le client existe déjà dans WooCommerce par email
         const existingCustomersResponse = await wooCommerceApi.get(
           `customers/?email=${encodeURIComponent(genukaCustomer.email)}&role=all`
         );
@@ -123,15 +125,29 @@ export const syncCustomersToWooCommerce = async (
             existingCustomerId,
             config.configuration!
           );
+
+          // Ajouter le résultat de la mise à jour
+          syncResults.push({
+            email: genukaCustomer.email,
+            wooCustomerId: existingCustomerId,
+            status: "updated",
+          });
         } else {
-          // Customer doesn't exist, create a new one
+          // Le client n'existe pas, créer un nouveau client
           syncResult = await createWooCommerceCustomer(
-            wooCommerceApi, 
-            config.configuration!, 
+            wooCommerceApi,
+            config.configuration!,
             wooCustomerData
           );
-          
-          // Optional: Update Genuka customer with WooCommerce ID
+
+          // Ajouter le résultat de la création
+          syncResults.push({
+            email: genukaCustomer.email,
+            wooCustomerId: syncResult.id,
+            status: "created",
+          });
+
+          // Optionnel : Mettre à jour le client Genuka avec l'ID WooCommerce
           // await updateGenukaCustomerWithWooId(config, genukaCustomer, syncResult.id);
         }
       } catch (error) {
@@ -139,11 +155,12 @@ export const syncCustomersToWooCommerce = async (
           `Error processing customer ${genukaCustomer.email}. Attempting rollback.`,
           error
         );
-        
+
         if (syncResult && syncResult.id) {
           await rollbackCustomerChanges(wooCommerceApi, syncResult.id);
         }
-        // Continue with the next customer instead of stopping the entire process
+
+        // Continuer avec le prochain client au lieu d'arrêter le processus
         continue;
       }
     }
@@ -153,8 +170,10 @@ export const syncCustomersToWooCommerce = async (
       cause: error,
     });
   }
-};
 
+  // Retourner les résultats de synchronisation
+  return syncResults;
+};
 /**
  * Create a new customer in WooCommerce
  * @param wooCommerceApi WooCommerce API client

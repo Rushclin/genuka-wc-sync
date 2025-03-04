@@ -10,7 +10,7 @@ interface GenukaOrderShippingDto {
   amount: number;
   status: string;
   address_id: string;
-  address?: GenukaAddressDto
+  address?: GenukaAddressDto;
 }
 
 interface GenukaOrderBillingDto {
@@ -20,12 +20,12 @@ interface GenukaOrderBillingDto {
   subtotal: number;
   address_id: string;
   treasury_account_id: string;
-  address?: GenukaAddressDto
+  address?: GenukaAddressDto;
 }
 
 interface Metadata {
   matchingMediaIds: [];
-  woocommerceId: number
+  woocommerceId: number;
 }
 
 interface GenukaShopDto {
@@ -57,7 +57,7 @@ export interface GenukaOrderDto {
   status: "pending" | "completed" | "cancelled" | "other" | string;
   currency: string;
   amount: number;
-  source: "EMAIL" | "OTHER" | string;
+  source: "EMAIL" | "OTHER" | "WHATSAPP" | string;
   shipping: GenukaOrderShippingDto;
   billing: GenukaOrderBillingDto;
   metadata: Metadata;
@@ -70,6 +70,7 @@ export interface GenukaOrderDto {
   state: number;
   shipping_fee_id: string | null;
   expires_at: string | null;
+  customer_orders_count: number;
   customer: GenukaCustomerDto;
   shipping_fee: number | null;
   medias: any[];
@@ -96,7 +97,42 @@ export interface GenukaOrderDto {
     updated_at: string;
     user: null;
     address: GenukaAddressDto;
-    order: object;
+    order: {
+      id: string;
+      company_id: string;
+      shop_id: string;
+      user_id: null;
+      customer_id: string;
+      reference: string;
+      status: string;
+      currency: string;
+      amount: number;
+      source: string;
+      shipping: {
+        mode: string;
+        amount: number;
+        status: string;
+        address_id: string;
+      };
+      billing: {
+        total: number;
+        method: string;
+        status: string;
+        subtotal: number;
+        address_id: string;
+        // treasury_account_id: '01jjxyhhqhnry8pqvjgjw2wyp1'
+      };
+      metadata: { matchingMediaIds: [] };
+      // created_at: '2024-04-28T03:07:04.000000Z',
+      // updated_at: '2025-01-31T10:31:05.000000Z',
+      // deleted_at: null,
+      // revenue_type: 'products',
+      // credit_code: '701',
+      // debit_code: '4111',
+      // state: 1,
+      // shipping_fee_id: null,
+      // expires_at: null
+    };
   };
   discounts: [];
   taxes: [];
@@ -134,50 +170,8 @@ export interface WooOrderDto {
   shipping: WooOrderShippingAddressDto;
   line_items: WooOrderLineItemDto[];
   shipping_lines: WooOrderShippingLineDto[];
+  customer_id: number;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export interface OrderDTO {
   id: string;
@@ -229,7 +223,7 @@ export interface BillingDTO {
 
 export interface MetadataDTO {
   matchingMediaIds: string[];
-  woocommerceId: number
+  woocommerceId: number;
 }
 
 export interface CustomerDTO {

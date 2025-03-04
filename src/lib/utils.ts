@@ -120,42 +120,60 @@ export const fromPrismaLogToGlobalLogDto = (input: Logger): GlobalLogs => {
 
 export const mapGenukaOrderToWooOrder = (
   input: GenukaOrderDto,
-  lineItems: WooOrderLineItemDto[]
+  lineItems: WooOrderLineItemDto[],
+  customer_id: number | null // Permettre customer_id d'être null
 ): WooOrderDto => {
-  const { customer } = input;
-  const shippingAdress = customer.addresses.find(
-    (addr) => addr.id === input.shipping.address_id
-  );
-  const billingAdress = customer.addresses.find(
-    (addr) => addr.id === input.billing.address_id
-  );
+  // Valeurs par défaut pour les adresses
+  const defaultAddress = {
+    city: "Default City",
+    state: "Default State",
+    address_1: "Default Address Line 1",
+    address_2: "Default Address Line 2",
+    country: "Default Country",
+    first_name: "Default First Name",
+    last_name: "Default Last Name",
+    postal_code: "Default Postal Code",
+    company: "Default Company",
+    email: "john@gmail.com",
+    phone: "Default Phone",
+  };
 
+  // Récupérer les adresses de livraison et de facturation
+  const shippingAddress = input.customer
+    ? input.customer.addresses.find((addr) => addr.id === input.shipping.address_id)
+    : null;
+  const billingAddress = input.customer
+    ? input.customer.addresses.find((addr) => addr.id === input.billing.address_id)
+    : null;
+
+  // Retourner l'objet WooOrderDto avec des valeurs par défaut si nécessaire
   return {
+    customer_id: customer_id ?? 0, // Si customer_id est null, utiliser 0 (ou une autre valeur par défaut)
     payment_method: input.billing.method,
     payment_method_title: input.billing.method,
-    set_paid: input.shipping.status === "pending" ? false : true,
+    set_paid: input.shipping.status !== "pending", // Si le statut n'est pas "pending", la commande est payée
     billing: {
-      city: billingAdress?.city ?? "Default Value",
-      state: billingAdress?.state ?? "Default Value",
-      address_1: billingAdress?.line1 ?? "Default Value",
-      address_2: billingAdress?.line2 ?? "Default Value",
-      country: billingAdress?.country ?? "Default Value",
-      first_name: billingAdress?.first_name ?? "Default Value",
-      last_name: billingAdress?.last_name ?? "Default Value",
-      postcode: billingAdress?.postal_code ?? "Default Value",
-      company: billingAdress?.company ?? "Default Value",
-      email: billingAdress?.email ?? "john@gmail.com",
-      phone: billingAdress?.phone ?? "Default Value",
+      city: billingAddress?.city ?? defaultAddress.city,
+      state: billingAddress?.state ?? defaultAddress.state,
+      address_1: billingAddress?.line1 ?? defaultAddress.address_1,
+      address_2: billingAddress?.line2 ?? defaultAddress.address_2,
+      country: billingAddress?.country ?? defaultAddress.country,
+      first_name: billingAddress?.first_name ?? defaultAddress.first_name,
+      last_name: billingAddress?.last_name ?? defaultAddress.last_name,
+      postcode: billingAddress?.postal_code ?? defaultAddress.postal_code,
+      company: billingAddress?.company ?? defaultAddress.company,
+      email: billingAddress?.email ?? defaultAddress.email,
+      phone: billingAddress?.phone ?? defaultAddress.phone,
     },
     shipping: {
-      address_1: shippingAdress?.line1 ?? "Default Value",
-      city: shippingAdress?.city ?? "Default City",
-      state: shippingAdress?.state ?? "Default State",
-      address_2: shippingAdress?.line2 ?? "Default Line",
-      country: shippingAdress?.country ?? "Default Country",
-      first_name: shippingAdress?.first_name ?? "Default Name",
-      last_name: shippingAdress?.last_name ?? "Default Name",
-      postcode: shippingAdress?.postal_code ?? "Default Post Code",
+      address_1: shippingAddress?.line1 ?? defaultAddress.address_1,
+      city: shippingAddress?.city ?? defaultAddress.city,
+      state: shippingAddress?.state ?? defaultAddress.state,
+      address_2: shippingAddress?.line2 ?? defaultAddress.address_2,
+      country: shippingAddress?.country ?? defaultAddress.country,
+      first_name: shippingAddress?.first_name ?? defaultAddress.first_name,
+      last_name: shippingAddress?.last_name ?? defaultAddress.last_name,
+      postcode: shippingAddress?.postal_code ?? defaultAddress.postal_code,
     },
     line_items: lineItems,
     shipping_lines: [
@@ -167,7 +185,6 @@ export const mapGenukaOrderToWooOrder = (
     ],
   };
 };
-
 export const mapGenukaProductToAddOtherProperties = (
   input: ProductDto
 ): ProductDto => {
