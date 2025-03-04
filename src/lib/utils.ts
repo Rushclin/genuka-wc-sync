@@ -140,16 +140,39 @@ export const mapGenukaOrderToWooOrder = (
 
   // Récupérer les adresses de livraison et de facturation
   const shippingAddress = input.customer
-    ? input.customer.addresses.find((addr) => addr.id === input.shipping.address_id)
+    ? input.customer.addresses.find(
+        (addr) => addr.id === input.shipping.address_id
+      )
     : null;
   const billingAddress = input.customer
-    ? input.customer.addresses.find((addr) => addr.id === input.billing.address_id)
+    ? input.customer.addresses.find(
+        (addr) => addr.id === input.billing.address_id
+      )
     : null;
+
+  const paymentMethodList: { [key: string]: string } = {
+    cash: "Espèces",
+    credit_card: "Carte bancaire",
+    wire_transfer: "Virement bancaire",
+    mtn_mobile_money: "MTN Mobile Money",
+    mtn_mobile_money_merchant: "MTN Mobile Money",
+    orange_money: "Orange Money",
+    orange_money_merchant: "Orange Money Marchand",
+    paypal: "Paypal",
+    bank: "Banque",
+  };
+
+  const getPaymentMethod = (method: string) => {
+    if (method in paymentMethodList) {
+      return paymentMethodList[method];
+    }
+    return "Méthode inconnue";
+  };
 
   // Retourner l'objet WooOrderDto avec des valeurs par défaut si nécessaire
   return {
     customer_id: customer_id ?? 0, // Si customer_id est null, utiliser 0 (ou une autre valeur par défaut)
-    payment_method: input.billing.method,
+    payment_method: getPaymentMethod(input.billing.method),
     payment_method_title: input.billing.method,
     set_paid: input.shipping.status !== "pending", // Si le statut n'est pas "pending", la commande est payée
     billing: {
@@ -181,6 +204,12 @@ export const mapGenukaOrderToWooOrder = (
         method_id: input.billing.method,
         method_title: input.billing.method,
         total: input.billing.total.toString(),
+      },
+    ],
+    meta_data: [
+      {
+        key: "order_origin", 
+        value: input.source,
       },
     ],
   };

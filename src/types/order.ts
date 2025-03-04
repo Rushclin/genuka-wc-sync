@@ -171,6 +171,10 @@ export interface WooOrderDto {
   line_items: WooOrderLineItemDto[];
   shipping_lines: WooOrderShippingLineDto[];
   customer_id: number;
+  meta_data: {
+    key: string;
+    value: string;
+  }[];
 }
 
 export interface OrderDTO {

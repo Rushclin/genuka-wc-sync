@@ -103,7 +103,7 @@ export const upsertWooCommerceOrders = async (
       headers,
     };
 
-    for (const genukaOrder of orders.slice(0, 5)) {
+    for (const genukaOrder of orders.slice(0, 10)) {
       let res: any = null;
       try {
         const order = await fetch(
