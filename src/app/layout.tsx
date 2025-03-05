@@ -6,7 +6,6 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ChevronRight } from "lucide-react";
 import { Toaster } from "@/components/ui/toaster";
-import "@/utils/cron"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
