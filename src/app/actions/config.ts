@@ -9,9 +9,8 @@ export const saveConfiguration = async (
 ): Promise<boolean> => {
   try {
     await prisma.configuration.create({
-      data: { ...data },
+      data
     });
-
     return true;
   } catch (error) {
     throw new Error("Une erreur s'est produite", { cause: error });

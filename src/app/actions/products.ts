@@ -24,7 +24,6 @@ export const syncProducts = async (companyConfig: CompanyWithConfiguration) => {
       version: "wc/v3",
       queryStringAuth: true,
     });
-
     const genukaProducts = await fetchAllGenukaProducts(companyConfig);
     await upsertWooProducts(companyConfig, wooCommerceApi, genukaProducts);
   } catch (error) {
@@ -80,6 +79,35 @@ const fetchAllGenukaProducts = async (
   }
 
   return allProducts;
+};
+
+export const fetchProductWithId = async (
+  id: string,
+  companyConfig: CompanyWithConfiguration
+) => {
+  const headers = new Headers({
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    "X-Company": `${companyConfig.configuration?.companyId}`,
+    Authorization: `Bearer ${companyConfig.accessToken}`,
+  });
+
+  const requestOptions = {
+    method: "GET",
+    headers,
+  };
+
+  const response = await fetch(
+    `${process.env.GENUKA_URL}/${process.env.GENUKA_VERSION}/admin/products/${id}`,
+    requestOptions
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch Genuka products");
+  }
+  const data = await response.json();
+
+  return data;
 };
 
 /**
@@ -139,30 +167,24 @@ export const upsertWooProducts = async (
         }
         results.push(createdOrUpdatedProduct);
       } catch (error) {
-        logger.error(
-          `Error processing product ${genukaProduct.title}: ${error}`
-        );
+        console.log(error);
         if (createdOrUpdatedProduct) {
-          await rollbackChanges(wooCommerceApi, createdOrUpdatedProduct.id);
-        } else {
-          await rollbackChanges(
-            wooCommerceApi,
-            genukaProduct.metadata!.woocommerceId
+          logger.error(
+            `Error processing product ${genukaProduct.title}: ${error}`
           );
+          await rollbackChanges(wooCommerceApi, createdOrUpdatedProduct.id);
         }
+        // else {
+        //   await rollbackChanges(
+        //     wooCommerceApi,
+        //     genukaProduct.metadata!.woocommerceId
+        //   );
+        // }
       }
     }
     return results;
   } catch (error) {
     logger.error(`Error during product upsert: ${error}`);
-    globalLogs.push({
-      type: "create",
-      module: "products",
-      date: new Date(),
-      id: "N/A",
-      statut: "failed",
-      companyId: companyConfig.configuration!.companyId,
-    });
     throw new Error("An error occurred during product synchronization", {
       cause: error,
     });
@@ -190,7 +212,7 @@ export const createWooProduct = async (
     const { data: createdProduct } = await wooCommerceApi.post(
       "products",
       wooProductData
-    )
+    );
 
     logger.info(`Product created successfully: ${wooProductData.name}`);
 
@@ -198,7 +220,7 @@ export const createWooProduct = async (
       logger.info(
         `Creating ${variants.length} variants for product: ${genukaProduct.title}`
       );
-      await createWooProductVariants(
+      await createOrUpdateWooProductVariants(
         genukaProduct,
         createdProduct.id,
         wooCommerceApi
@@ -242,7 +264,7 @@ export const updateWooProduct = async (
       logger.info(
         `Updating ${variants.length} variants for product: ${genukaProduct.title}`
       );
-      await createWooProductVariants(
+      await createOrUpdateWooProductVariants(
         genukaProduct,
         updatedProduct.id,
         wooCommerceApi
@@ -336,13 +358,19 @@ export const createWooProductVariants = async (
             name: option.title,
             option: option.values[variant.position - 1],
             variation: true,
-            visible: true
+            visible: true,
           })),
         ],
         sku: variant.sku,
         stock_quantity: variant.estimated_quantity ?? 1,
         manage_stock: true,
-      }
+        meta_data: [
+          {
+            key: "genuka_variant_id",
+            value: variant.id,
+          },
+        ],
+      };
 
       logger.info(`Creating variant: ${variant.title}`);
       await wooCommerceApi
@@ -359,6 +387,86 @@ export const createWooProductVariants = async (
     throw new Error("An error occurred while creating product variants", {
       cause: error,
     });
+  }
+};
+
+export const createOrUpdateWooProductVariants = async (
+  genukaProduct: ProductDto,
+  wooProductId: number,
+  wooCommerceApi: WooCommerceRestApi
+) => {
+  try {
+    const { variants, options } = genukaProduct;
+
+    // Récupérer toutes les variantes existantes pour ce produit
+    const existingVariantsResponse = await wooCommerceApi.get(
+      `products/${wooProductId}/variations`
+    );
+    const existingVariants = existingVariantsResponse.data;
+
+    for (const variant of variants) {
+      const data = {
+        regular_price: variant.price.toString(),
+        attributes: [
+          ...options.map((option) => ({
+            name: option.title,
+            option: option.values[variant.position - 1],
+            variation: true,
+            visible: true,
+          })),
+        ],
+        sku: variant.sku,
+        stock_quantity: variant.estimated_quantity ?? 1,
+        manage_stock: true,
+        meta_data: [
+          {
+            key: "genuka_variant_id",
+            value: variant.id,
+          },
+        ],
+      };
+
+      // Vérifier si la variante existe déjà en utilisant l'identifiant Genuka
+      const existingVariant = existingVariants.find((v: any) => {
+        const genukaVariantIdMeta = v.meta_data.find(
+          (meta: any) => meta.key === "genuka_variant_id"
+        );
+        return genukaVariantIdMeta && genukaVariantIdMeta.value === variant.id;
+      });
+
+      if (existingVariant) {
+        logger.info(`Updating variant: ${variant.title}`);
+        await wooCommerceApi
+          .put(
+            `products/${wooProductId}/variations/${existingVariant.id}`,
+            data
+          )
+          .then((response) =>
+            logger.info(`Variant updated: ${JSON.stringify(response.data)}`)
+          )
+          .catch((error) =>
+            logger.error(`Error updating variant: ${error.response}`)
+          );
+      } else {
+        logger.info(`Creating variant: ${variant.title}`);
+        await wooCommerceApi
+          .post(`products/${wooProductId}/variations`, data)
+          .then((response) =>
+            logger.info(`Variant created: ${JSON.stringify(response.data)}`)
+          )
+          .catch((error) =>
+            logger.error(`Error creating variant: ${error.response}`)
+          );
+      }
+    }
+  } catch (error) {
+    logger.error(`Error creating/updating product variants: ${error}`);
+    throw new Error(
+      "An error occurred while creating/updating product variants",
+      {
+        cause: error,
+      }
+    );
   }
 };
 

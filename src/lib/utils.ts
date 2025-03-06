@@ -7,6 +7,7 @@ import {
 import { ProductDto, WooCommercerProductCreate } from "@/types/product";
 import { GlobalLogs } from "@/utils/logger";
 import { Logger } from "@prisma/client";
+import WooCommerceRestApi from "@woocommerce/woocommerce-rest-api";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -68,12 +69,31 @@ export const extractWooCustomerDtoInfoFromGenukaCustomer = (
   input: GenukaCustomerDto
 ): WooCustomerDto => {
   const { addresses } = input;
-  const shippingAdress = addresses.find(
-    (addr) => addr.addressable_id === input.shipping_address?.addressable_id
-  );
-  const billingAdress = addresses.find(
-    (addr) => addr.addressable_id === input.billing_address?.addressable_id
-  );
+
+  const defaultAddress = {
+    city: "Default City",
+    state: "Default State",
+    address_1: "Default Address Line 1",
+    address_2: "Default Address Line 2",
+    country: "Default Country",
+    first_name: "Default First Name",
+    last_name: "Default Last Name",
+    postal_code: "Default Postal Code",
+    company: "Default Company",
+    email: "john@gmail.com",
+    phone: "Default Phone",
+  };
+
+  const shippingAdress = addresses
+    ? addresses.find(
+        (addr) => addr.id === input.shipping_address?.addressable_id
+      )
+    : null;
+  const billingAdress = addresses
+    ? addresses.find(
+        (addr) => addr.id === input.billing_address?.addressable_id
+      )
+    : null;
 
   return {
     email: input.email,
@@ -81,27 +101,27 @@ export const extractWooCustomerDtoInfoFromGenukaCustomer = (
     last_name: input.last_name,
     username: input.email,
     billing: {
-      city: billingAdress?.city ?? "Default Value",
-      state: billingAdress?.state ?? "Default Value",
-      address_1: billingAdress?.line1 ?? "Default Value",
-      address_2: billingAdress?.line2 ?? "Default Value",
-      country: billingAdress?.country ?? "Default Value",
-      first_name: billingAdress?.first_name ?? "Default Value",
-      last_name: billingAdress?.last_name ?? "Default Value",
-      postcode: billingAdress?.postal_code ?? "Default Value",
-      company: billingAdress?.company ?? "Default Value",
-      email: billingAdress?.email ?? "john@gmail.com",
-      phone: billingAdress?.phone ?? "Default Value",
+      city: billingAdress?.city ?? defaultAddress.city,
+      state: billingAdress?.state ?? defaultAddress.state,
+      address_1: billingAdress?.line1 ?? defaultAddress.address_1,
+      address_2: billingAdress?.line2 ?? defaultAddress.address_2,
+      country: billingAdress?.country ?? defaultAddress.country,
+      first_name: billingAdress?.first_name ?? defaultAddress.first_name,
+      last_name: billingAdress?.last_name ?? defaultAddress.last_name,
+      postcode: billingAdress?.postal_code ?? defaultAddress.postal_code,
+      company: billingAdress?.company ?? defaultAddress.company,
+      email: billingAdress?.email ?? defaultAddress.email,
+      phone: billingAdress?.phone ?? defaultAddress.phone,
     },
     shipping: {
-      address_1: shippingAdress?.line1 ?? "Default Value",
-      city: shippingAdress?.city ?? "Default City",
-      state: shippingAdress?.state ?? "Default State",
-      address_2: shippingAdress?.line2 ?? "Default Line",
-      country: shippingAdress?.country ?? "Default Country",
-      first_name: shippingAdress?.first_name ?? "Default Name",
-      last_name: shippingAdress?.last_name ?? "Default Name",
-      postcode: shippingAdress?.postal_code ?? "Default Post Code",
+      address_1: shippingAdress?.line1 ?? defaultAddress.address_1,
+      city: shippingAdress?.city ?? defaultAddress.city,
+      state: shippingAdress?.state ?? defaultAddress.state,
+      address_2: shippingAdress?.line2 ?? defaultAddress.address_2,
+      country: shippingAdress?.country ?? defaultAddress.country,
+      first_name: shippingAdress?.first_name ?? defaultAddress.first_name,
+      last_name: shippingAdress?.last_name ?? defaultAddress.last_name,
+      postcode: shippingAdress?.postal_code ?? defaultAddress.postal_code,
       company: shippingAdress?.company ?? "Default Company",
     },
   };
@@ -118,12 +138,15 @@ export const fromPrismaLogToGlobalLogDto = (input: Logger): GlobalLogs => {
   };
 };
 
-export const mapGenukaOrderToWooOrder = (
+export const mapGenukaOrderToWooOrder = async (
   input: GenukaOrderDto,
   lineItems: WooOrderLineItemDto[],
-  customer_id: number | null // Permettre customer_id d'être null
-): WooOrderDto => {
+  customer_id: number | null, // Permettre customer_id d'être null
+  wooApi: WooCommerceRestApi,
+  existingOrderId?: number // ID de la commande existante (si elle existe)
+): Promise<WooOrderDto> => {
   // Valeurs par défaut pour les adresses
+  const { addresses } = input;
   const defaultAddress = {
     city: "Default City",
     state: "Default State",
@@ -139,41 +162,55 @@ export const mapGenukaOrderToWooOrder = (
   };
 
   // Récupérer les adresses de livraison et de facturation
-  const shippingAddress = input.customer
-    ? input.customer.addresses.find(
-        (addr) => addr.id === input.shipping.address_id
-      )
+  const shippingAddress = addresses
+    ? addresses.find((addr) => addr.id === input.shipping.address_id)
     : null;
   const billingAddress = input.customer
-    ? input.customer.addresses.find(
-        (addr) => addr.id === input.billing.address_id
-      )
+    ? addresses.find((addr) => addr.id === input.billing.address_id)
     : null;
 
-  const paymentMethodList: { [key: string]: string } = {
-    cash: "Espèces",
-    credit_card: "Carte bancaire",
-    wire_transfer: "Virement bancaire",
-    mtn_mobile_money: "MTN Mobile Money",
-    mtn_mobile_money_merchant: "MTN Mobile Money",
-    orange_money: "Orange Money",
-    orange_money_merchant: "Orange Money Marchand",
-    paypal: "Paypal",
-    bank: "Banque",
-  };
+  // Récupérer la commande existante si elle existe
+  // let existingOrder: WooOrderDto | null = null;
+  // if (existingOrderId) {
+  //   try {
+  //     const response = await wooApi.get(`orders/${existingOrderId}`);
+  //     existingOrder = response.data;
+  //   } catch (error) {
+  //     // logger.error(`Error fetching existing order: ${error}`);
+  //     console.log("Une erreur s'est produite", error);
+  //     existingOrder = null;
+  //   }
+  // }
 
-  const getPaymentMethod = (method: string) => {
-    if (method in paymentMethodList) {
-      return paymentMethodList[method];
-    }
-    return "Méthode inconnue";
-  };
+  console.log({existingOrderId})
+  // Préparer les line_items et shipping_lines
+  // const updatedLineItems = existingOrder
+  //   ? existingOrder.line_items.map((item) => {
+  //       const updatedItem = lineItems.find(
+  //         (li) => li.product_id === item.product_id
+  //       );
+  //       return updatedItem ? { ...item, quantity: updatedItem.quantity } : item;
+  //     })
+  //   : lineItems;
+
+  // const updatedShippingLines = existingOrder
+  //   ? existingOrder.shipping_lines.map((line) => ({
+  //       ...line,
+  //       total: input.shipping.amount.toString(),
+  //     }))
+  //   : [
+  //       {
+  //         method_id: input.billing.treasury_account_id,
+  //         method_title: input.billing.treasury_account_label,
+  //         total: input.shipping.amount.toString(),
+  //       },
+  //     ];
 
   // Retourner l'objet WooOrderDto avec des valeurs par défaut si nécessaire
   return {
     customer_id: customer_id ?? 0, // Si customer_id est null, utiliser 0 (ou une autre valeur par défaut)
-    payment_method: getPaymentMethod(input.billing.method),
-    payment_method_title: input.billing.method,
+    payment_method: input.billing.treasury_account_label,
+    payment_method_title: input.billing.treasury_account_label,
     set_paid: input.shipping.status !== "pending", // Si le statut n'est pas "pending", la commande est payée
     billing: {
       city: billingAddress?.city ?? defaultAddress.city,
@@ -201,19 +238,23 @@ export const mapGenukaOrderToWooOrder = (
     line_items: lineItems,
     shipping_lines: [
       {
-        method_id: input.billing.method,
-        method_title: input.billing.method,
-        total: input.billing.total.toString(),
+        method_id: input.billing.treasury_account_id, // Meme methode de payement
+        method_title: input.billing.treasury_account_label, // Meme methode de payement
+        total: input.shipping.amount.toString(),
       },
     ],
+    // line_items: updatedLineItems,
+    // shipping_lines: updatedShippingLines,
     meta_data: [
       {
-        key: "order_origin", 
+        key: "order_origin",
         value: input.source,
       },
     ],
+    source: input.source
   };
 };
+
 export const mapGenukaProductToAddOtherProperties = (
   input: ProductDto
 ): ProductDto => {
@@ -249,17 +290,16 @@ export const convertApiOrder = (order: GenukaOrderDto): GenukaOrderDto => {
         })) || [],
     shipping: {
       ...order.shipping,
-      address: order.addresses?.find(
-        (a) => a.id === order.shipping.address_id
-      ) ?? {
-        line1: "Default value",
-        city: "Default value",
-        company: "Default value",
-        country: "Default value",
-        email: "default@gmail.com",
-        first_name: "default value",
-        label: "Default value",
-      },
+      address: order.addresses?.find((a) => a.id === order.shipping.address_id),
+      //  ?? {
+      //   line1: "Default value",
+      //   city: "Default value",
+      //   company: "Default value",
+      //   country: "Default value",
+      //   email: "default@gmail.com",
+      //   first_name: "default value",
+      //   label: "Default value",
+      // },
     },
     billing: {
       ...order.billing,

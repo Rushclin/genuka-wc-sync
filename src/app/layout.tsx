@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Genuka Woo Commerce Sync",
+  title: "Genuka Woo Commerce Synchronisation",
   description: "Application de synchronisation des commandes, produits et clients de Genuka vers Woo Commerce",
 };
 

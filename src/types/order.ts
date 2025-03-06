@@ -21,6 +21,27 @@ interface GenukaOrderBillingDto {
   address_id: string;
   treasury_account_id: string;
   address?: GenukaAddressDto;
+
+  treasury_account: {
+    id: string;
+    shop_id: string;
+    company_id: string;
+    accounting_account_code: number;
+    balance: number;
+    label: string;
+    type: string;
+    logoUrl: null;
+    metadata: {
+      shop_id: string;
+      shop_name: string;
+      currency_code: string;
+      currency_name: string;
+    };
+
+    medias: [];
+    shop: GenukaShopDto;
+  };
+  treasury_account_label: string;
 }
 
 interface Metadata {
@@ -175,6 +196,7 @@ export interface WooOrderDto {
     key: string;
     value: string;
   }[];
+  source: string;
 }
 
 export interface OrderDTO {
