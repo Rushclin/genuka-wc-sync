@@ -175,12 +175,14 @@ export interface WooOrderLineItemDto {
   product_id: number;
   variation_id?: number;
   quantity: number;
+  id? : number
 }
 
 interface WooOrderShippingLineDto {
   method_id: string;
   method_title: string;
   total: string;
+  id?: number;
 }
 
 export interface WooOrderDto {
@@ -191,7 +193,7 @@ export interface WooOrderDto {
   shipping: WooOrderShippingAddressDto;
   line_items: WooOrderLineItemDto[];
   shipping_lines: WooOrderShippingLineDto[];
-  customer_id: number;
+  customer_id?: number;
   meta_data: {
     key: string;
     value: string;

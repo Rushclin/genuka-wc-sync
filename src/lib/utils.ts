@@ -182,7 +182,7 @@ export const mapGenukaOrderToWooOrder = async (
   //   }
   // }
 
-  console.log({existingOrderId})
+  console.log({ existingOrderId });
   // Préparer les line_items et shipping_lines
   // const updatedLineItems = existingOrder
   //   ? existingOrder.line_items.map((item) => {
@@ -251,7 +251,94 @@ export const mapGenukaOrderToWooOrder = async (
         value: input.source,
       },
     ],
-    source: input.source
+    source: input.source,
+  };
+};
+
+export const mapGenukaOrderToWooOrderUpdate = (
+  input: GenukaOrderDto,
+  lineItems: any[],
+  updatedShippingLines: any[],
+  customer_id: number | null
+): WooOrderDto => {
+  // Valeurs par défaut pour les adresses
+  const { addresses } = input;
+  const defaultAddress = {
+    city: "Default City",
+    state: "Default State",
+    address_1: "Default Address Line 1",
+    address_2: "Default Address Line 2",
+    country: "Default Country",
+    first_name: "Default First Name",
+    last_name: "Default Last Name",
+    postal_code: "Default Postal Code",
+    company: "Default Company",
+    email: "john@gmail.com",
+    phone: "Default Phone",
+  };
+
+  // Récupérer les adresses de livraison et de facturation
+  const shippingAddress = addresses
+    ? addresses.find((addr) => addr.id === input.shipping.address_id)
+    : null;
+  const billingAddress = input.customer
+    ? addresses.find((addr) => addr.id === input.billing.address_id)
+    : null;
+
+  return {
+    customer_id: customer_id ?? 0,
+    payment_method: input.billing.treasury_account_label,
+    payment_method_title: input.billing.treasury_account_label,
+    set_paid: input.shipping.status !== "pending", // Si le statut n'est pas "pending", la commande est payée
+    billing: {
+      city: billingAddress?.city ?? defaultAddress.city,
+      state: billingAddress?.state ?? defaultAddress.state,
+      address_1: billingAddress?.line1 ?? defaultAddress.address_1,
+      address_2: billingAddress?.line2 ?? defaultAddress.address_2,
+      country: billingAddress?.country ?? defaultAddress.country,
+      first_name: billingAddress?.first_name ?? defaultAddress.first_name,
+      last_name: billingAddress?.last_name ?? defaultAddress.last_name,
+      postcode: billingAddress?.postal_code ?? defaultAddress.postal_code,
+      company: billingAddress?.company ?? defaultAddress.company,
+      email: billingAddress?.email ?? defaultAddress.email,
+      phone: billingAddress?.phone ?? defaultAddress.phone,
+    },
+    shipping: {
+      address_1: shippingAddress?.line1 ?? defaultAddress.address_1,
+      city: shippingAddress?.city ?? defaultAddress.city,
+      state: shippingAddress?.state ?? defaultAddress.state,
+      address_2: shippingAddress?.line2 ?? defaultAddress.address_2,
+      country: shippingAddress?.country ?? defaultAddress.country,
+      first_name: shippingAddress?.first_name ?? defaultAddress.first_name,
+      last_name: shippingAddress?.last_name ?? defaultAddress.last_name,
+      postcode: shippingAddress?.postal_code ?? defaultAddress.postal_code,
+    },
+    line_items: lineItems.map((line) => ({
+      product_id: line.product_id,
+      quantity: line.quantity,
+      variation_id: line.variation_id,
+      id: line.id,
+    })),
+    // shipping_lines: [
+    //   {
+    //     method_id: input.billing.treasury_account_id, // Meme methode de payement
+    //     method_title: input.billing.treasury_account_label, // Meme methode de payement
+    //     total: input.shipping.amount.toString(),
+    //   },
+    // ],
+    shipping_lines: updatedShippingLines.map((line) => ({
+      method_id: line.method_id,
+      method_title: line.method_title,
+      total: line.total,
+      id: line.id,
+    })),
+    meta_data: [
+      {
+        key: "order_origin",
+        value: input.source,
+      },
+    ],
+    source: input.source,
   };
 };
 

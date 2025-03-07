@@ -13,6 +13,7 @@ import { upsertWooProducts } from "./products";
 import {
   convertApiOrder,
   mapGenukaOrderToWooOrder,
+  mapGenukaOrderToWooOrderUpdate,
   mapGenukaProductToAddOtherProperties,
 } from "@/lib/utils";
 import loggerService from "@/services/database/logger.service";
@@ -432,17 +433,26 @@ export const updateWooCommerceOrder = async (
       order.shipping.amount.toString()
     );
 
-    console.log({ updatedLineItems, updatedShippingLines });
+    // console.log({ updatedLineItems, updatedShippingLines });
 
     // 3. Mapper la commande Genuka vers le format WooCommerce
-    const mappedOrder = await mapGenukaOrderToWooOrder(
+    const mappedOrder = mapGenukaOrderToWooOrderUpdate(
       order,
-      lineItems,
-      // updatedLineItems,
+      updatedLineItems,
+      updatedShippingLines,
       wooCustomerId,
-      wooApi,
-      metadata.woocommerceId
     );
+
+    // // -------------
+    // const updatedOrder = {
+    //   line_items: [],
+    //   shipping_lines: [],
+    // };
+
+    // // 3. Envoyer la commande vide pour effacer les anciennes lignes
+    // const result = await wooApi.put(`orders/${metadata.woocommerceId}`, updatedOrder);
+
+    // -----------
 
     // 4. Mettre à jour la commande dans WooCommerce
     logger.info(`Trying to update order ${order.reference} in WooCommerce`);
@@ -464,55 +474,173 @@ export const updateWooCommerceOrder = async (
     });
   }
 };
+
+// const combineLines = (
+//   order: WooOrderDto,
+//   lineItems: WooOrderLineItemDto[],
+//   total: string
+// ) => {
+//   // Mettre à jour ou ajouter les line_items
+//   const updatedLineItems = [...order.line_items];
+
+//   lineItems.forEach((newItem) => {
+//     const existingItemIndex = updatedLineItems.findIndex(
+//       (item) => item.product_id === newItem.product_id
+//     );
+
+//     console.log({existingItemIndex})
+
+//     if (existingItemIndex !== -1) {
+//       // Mettre à jour l'élément existant
+//       updatedLineItems[existingItemIndex] = {
+//         ...updatedLineItems[existingItemIndex],
+//         quantity: newItem.quantity,
+//       };
+//     } else {
+//       // Ajouter un nouvel élément
+//       updatedLineItems.push(newItem);
+//     }
+//   });
+
+//   // Mettre à jour ou ajouter les shipping_lines
+//   const updatedShippingLines = [...order.shipping_lines];
+
+//   order.shipping_lines.forEach((newShippingLine) => {
+//     const existingShippingLineIndex = updatedShippingLines.findIndex(
+//       (line) => line.method_id === newShippingLine.method_id
+//     );
+
+//     if (existingShippingLineIndex !== -1) {
+//       // Mettre à jour la ligne de livraison existante
+//       updatedShippingLines[existingShippingLineIndex] = {
+//         ...updatedShippingLines[existingShippingLineIndex],
+//         total: total,
+//       };
+//     } else {
+//       // Ajouter une nouvelle ligne de livraison
+//       updatedShippingLines.push({
+//         ...newShippingLine,
+//         total: total,
+//       });
+//     }
+//   });
+
+//   // console.log({ updatedLineItems, updatedShippingLines });
+
+//   const hh = updatedLineItems.map(r => ({
+//     product_id : r.product_id,
+//     variation_id: r.variation_id,
+//     quantity: r.quantity
+//   }))
+
+//   console.log({hh})
+
+//   return { updatedLineItems, updatedShippingLines };
+// };
+
+// const combineLines = (
+//   order: WooOrderDto,
+//   lineItems: WooOrderLineItemDto[],
+//   total: string
+// ) => {
+//   // Mettre à jour ou ajouter les line_items
+//   const updatedLineItems = order.line_items.reduce<WooOrderLineItemDto[]>((acc, item) => {
+//     const newItem = lineItems.find((newItem) => newItem.product_id === item.product_id);
+//     if (newItem) {
+//       acc.push({ ...item, quantity: newItem.quantity });
+//     } else {
+//       acc.push(item);
+//     }
+//     return acc;
+//   }, []);
+
+//   // Ajouter les nouveaux éléments qui ne sont pas encore présents
+//   lineItems.forEach((newItem) => {
+//     if (!updatedLineItems.some((item) => item.product_id === newItem.product_id)) {
+//       updatedLineItems.push(newItem);
+//     }
+//   });
+
+//   // Mettre à jour ou ajouter les shipping_lines
+//   const updatedShippingLines = order.shipping_lines.reduce<typeof order.shipping_lines>((acc, line) => {
+//     const existingShippingLine = acc.find((existing) => existing.method_id === line.method_id);
+//     if (existingShippingLine) {
+//       existingShippingLine.total = total;
+//     } else {
+//       acc.push({ ...line, total: total });
+//     }
+//     return acc;
+//   }, [...order.shipping_lines]);
+
+//   return { updatedLineItems, updatedShippingLines };
+// };
+
 const combineLines = (
   order: WooOrderDto,
-  lineItems: WooOrderLineItemDto[],
+  lineItems: any[],
   total: string
 ) => {
-  // Mettre à jour ou ajouter les line_items
-  const updatedLineItems = [...order.line_items];
+  const productQuantityMap = new Map<number, number>();
 
-  lineItems.forEach((newItem) => {
-    const existingItemIndex = updatedLineItems.findIndex(
-      (item) => item.product_id === newItem.product_id
+  order.line_items.forEach((item) => {
+    productQuantityMap.set(
+      item.product_id,
+      (productQuantityMap.get(item.product_id) || 0) + item.quantity
     );
-
-    if (existingItemIndex !== -1) {
-      // Mettre à jour l'élément existant
-      updatedLineItems[existingItemIndex] = {
-        ...updatedLineItems[existingItemIndex],
-        quantity: newItem.quantity,
-      };
-    } else {
-      // Ajouter un nouvel élément
-      updatedLineItems.push(newItem);
-    }
   });
 
-  // Mettre à jour ou ajouter les shipping_lines
-  const updatedShippingLines = [...order.shipping_lines];
-
-  order.shipping_lines.forEach((newShippingLine) => {
-    const existingShippingLineIndex = updatedShippingLines.findIndex(
-      (line) => line.method_id === newShippingLine.method_id
+  lineItems.forEach((newItem) => {
+    productQuantityMap.set(
+      newItem.product_id,
+      (productQuantityMap.get(newItem.product_id) || 0) + newItem.quantity
     );
+  });
 
-    if (existingShippingLineIndex !== -1) {
-      // Mettre à jour la ligne de livraison existante
-      updatedShippingLines[existingShippingLineIndex] = {
-        ...updatedShippingLines[existingShippingLineIndex],
-        total: total,
-      };
-    } else {
-      // Ajouter une nouvelle ligne de livraison
-      updatedShippingLines.push({
-        ...newShippingLine,
+  const updatedLineItems = Array.from(productQuantityMap.entries()).map(
+    ([productId, _]) => {
+      const existingItem = order.line_items.find(
+        (item) => item.product_id === productId
+      );
+
+      if (existingItem) {
+        return {
+          ...existingItem,
+          quantity: existingItem.quantity,
+        };
+      } else {
+        const newItemData = lineItems.find(
+          (item) => item.product_id === productId
+        );
+        return {
+          product_id: productId,
+          quantity: newItemData.quantity,
+          ...(newItemData || {}),
+        };
+      }
+    }
+  );
+
+  const shippingMap = new Map<string, any>();
+
+  order.shipping_lines.forEach((line) => {
+    shippingMap.set(line.method_id, { ...line });
+  });
+
+  if (total) {
+    shippingMap.forEach((line) => {
+      line.total = total;
+    });
+
+    if (shippingMap.size === 0) {
+      shippingMap.set("flat_rate", {
+        method_id: "flat_rate",
+        method_title: "Flat Rate",
         total: total,
       });
     }
-  });
+  }
 
-  // console.log({ updatedLineItems, updatedShippingLines });
+  const updatedShippingLines = Array.from(shippingMap.values());
 
   return { updatedLineItems, updatedShippingLines };
 };
