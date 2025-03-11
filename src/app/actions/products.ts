@@ -1,12 +1,13 @@
 "use server";
 
+import slugify from "slugify";
+import logger, { GlobalLogs } from "@/utils/logger";
+import { Option, ProductDto } from "@/types/product";
+import WooCommerceRestApi from "@woocommerce/woocommerce-rest-api";
+import { CompanyWithConfiguration } from "@/types/company";
 import { convertGenukaProductToWooCommerceProduct } from "@/lib/utils";
 import loggerService from "@/services/database/logger.service";
-import { CompanyWithConfiguration } from "@/types/company";
-import { Option, ProductDto } from "@/types/product";
-import logger, { GlobalLogs } from "@/utils/logger";
-import WooCommerceRestApi from "@woocommerce/woocommerce-rest-api";
-import slugify from "slugify";
+
 
 const globalLogs: GlobalLogs[] = [];
 
@@ -24,8 +25,8 @@ export const syncProducts = async (companyConfig: CompanyWithConfiguration) => {
       version: "wc/v3",
       queryStringAuth: true,
     });
-    const genukaProducts = await fetchAllGenukaProducts(companyConfig);
-    await upsertWooProducts(companyConfig, wooCommerceApi, genukaProducts);
+    const products = await fetchProductsFromGenuka(companyConfig);
+    await upsertWooCommerceProducts(companyConfig, wooCommerceApi, products);
   } catch (error) {
     logger.error(`Error during product synchronization: ${error}`);
     throw new Error("An error occurred during synchronization", {
@@ -39,7 +40,7 @@ export const syncProducts = async (companyConfig: CompanyWithConfiguration) => {
  * @param {CompanyWithConfiguration} companyConfig - Configuration of the company
  * @returns {Promise<ProductDto[]>} - List of products
  */
-const fetchAllGenukaProducts = async (
+const fetchProductsFromGenuka = async (
   companyConfig: CompanyWithConfiguration
 ): Promise<ProductDto[]> => {
   const allProducts: ProductDto[] = [];
@@ -81,7 +82,7 @@ const fetchAllGenukaProducts = async (
   return allProducts;
 };
 
-export const fetchProductWithId = async (
+export const fetchProductFromGenukaWithId = async (
   id: string,
   companyConfig: CompanyWithConfiguration
 ) => {
@@ -116,7 +117,7 @@ export const fetchProductWithId = async (
  * @param {WooCommerceRestApi} wooCommerceApi - WooCommerce API instance
  * @param {ProductDto[]} genukaProducts - List of products from Genuka
  */
-export const upsertWooProducts = async (
+export const upsertWooCommerceProducts = async (
   companyConfig: CompanyWithConfiguration,
   wooCommerceApi: WooCommerceRestApi,
   genukaProducts: ProductDto[]
@@ -174,12 +175,6 @@ export const upsertWooProducts = async (
           );
           await rollbackChanges(wooCommerceApi, createdOrUpdatedProduct.id);
         }
-        // else {
-        //   await rollbackChanges(
-        //     wooCommerceApi,
-        //     genukaProduct.metadata!.woocommerceId
-        //   );
-        // }
       }
     }
     return results;
@@ -398,7 +393,6 @@ export const createOrUpdateWooProductVariants = async (
   try {
     const { variants, options } = genukaProduct;
 
-    // Récupérer toutes les variantes existantes pour ce produit
     const existingVariantsResponse = await wooCommerceApi.get(
       `products/${wooProductId}/variations`
     );

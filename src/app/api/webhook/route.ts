@@ -1,6 +1,6 @@
 import { syncCustomersToWooCommerce } from "@/app/actions/customers";
 import { upsertWooCommerceOrders } from "@/app/actions/orders";
-import { fetchProductWithId, upsertWooProducts } from "@/app/actions/products";
+import { fetchProductFromGenukaWithId, upsertWooCommerceProducts } from "@/app/actions/products";
 import { CompanyDBService } from "@/services/database/company.service";
 import { GenukaCustomerDto } from "@/types/customer";
 import { OrderDTO } from "@/types/order";
@@ -79,17 +79,17 @@ export async function POST(request: Request) {
       case "product.created":
         console.log("Created product");
         const request = entity as ProductDto;
-        const createdProduct = await fetchProductWithId(request.id, config);
+        const createdProduct = await fetchProductFromGenukaWithId(request.id, config);
 
-        await upsertWooProducts(config, wooApi, [createdProduct]);
+        await upsertWooCommerceProducts(config, wooApi, [createdProduct]);
         break;
 
       case "product.updated":
         console.log("Updated product");
         const updatedProduct = entity as ProductDto;
-        const product = await fetchProductWithId(updatedProduct.id, config);
+        const product = await fetchProductFromGenukaWithId(updatedProduct.id, config);
 
-        await upsertWooProducts(config, wooApi, [product]);
+        await upsertWooCommerceProducts(config, wooApi, [product]);
         break;
 
       case "product.deleted":

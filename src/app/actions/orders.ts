@@ -9,7 +9,7 @@ import {
 } from "@/types/order";
 import logger, { GlobalLogs } from "@/utils/logger";
 import WooCommerceRestApi from "@woocommerce/woocommerce-rest-api";
-import { upsertWooProducts } from "./products";
+import { upsertWooCommerceProducts } from "./products";
 import {
   convertApiOrder,
   mapGenukaOrderToWooOrder,
@@ -141,11 +141,11 @@ export const upsertWooCommerceOrders = async (
           const productsWithPriceAndQte = products.map(
             mapGenukaProductToAddOtherProperties
           );
-          await updateGenukaOrder(
-            config,
-            { ...data, products: productsWithPriceAndQte },
-            res.id
-          );
+          // await updateGenukaOrder(
+          //   config,
+          //   { ...data, products: productsWithPriceAndQte },
+          //   res.id
+          // );
           globalLogs.push({
             type: "update",
             module: "products",
@@ -266,7 +266,7 @@ const prepareLineItemsForOrder = async (
         logger.debug(
           "The product does not exist in WooCommerce. Creating it..."
         );
-        const createdProducts = await upsertWooProducts(config, wooApi, [
+        const createdProducts = await upsertWooCommerceProducts(config, wooApi, [
           product,
         ]);
         wooProductId = createdProducts[0].id;
@@ -309,7 +309,7 @@ const prepareLineItemsForOrder = async (
 //         logger.debug(
 //           "The product does not exist in WooCommerce. Creating it..."
 //         );
-//         const createdProducts = await upsertWooProducts(config, wooApi, [
+//         const createdProducts = await upsertWooCommerceProducts(config, wooApi, [
 //           product,
 //         ]);
 //         wooProductId = createdProducts[0].id;
