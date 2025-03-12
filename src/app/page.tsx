@@ -13,7 +13,7 @@ export default function Home() {
   if (!companyId) {
     return (
       <div>
-        <p className="text-slate-800 text-sm text-center">La companie pour laquelle vous souhaitez installer l&apos;application est introuvable <br/> Il faut passer par le store Genuka pour le faire </p>
+        <p className="text-slate-800 text-sm text-center">La companie pour laquelle vous souhaitez installer l&apos;application est introuvable <br/> Il faut passer par le <a href="https://genuka.com/apps" target="_blank" className="underline">store Genuka</a> pour le faire </p>
       </div>
     )
   }

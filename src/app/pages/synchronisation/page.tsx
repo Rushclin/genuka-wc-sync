@@ -118,7 +118,7 @@ const SynchronisationPage = () => {
                 <Button onClick={() => handlerSyncOrders()} className='w-full bg-[#873EFF] text-white p-2 rounded-md'>Commandes</Button>
             </div>
             <div className='mt-5'>
-                Historique des Logs
+                Historique des logs
             </div>
             <div className='mt-5 max-h-[450px] overflow-y-scroll'>
                 <DataTable columns={columns} data={globalLogs} />
