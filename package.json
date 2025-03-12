@@ -1,7 +1,13 @@
 {
   "name": "genuka-wc-sync",
   "version": "0.1.0",
+  "description": "Synchronize products, customers, orders, etc from Genuka to Woocommerce",
   "private": true,
+  "author": {
+    "name": "Rushclin Takam from Genuka",
+    "email": "rtakam@genuka.com",
+    "url": "https://genuka.com"
+  },
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
