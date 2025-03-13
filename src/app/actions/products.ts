@@ -152,11 +152,11 @@ export const upsertWooCommerceProducts = async (
             genukaProduct,
             wooCommerceApi
           );
-          await updateGenukaProduct(
-            genukaProduct,
-            createdOrUpdatedProduct.id,
-            companyConfig
-          );
+          // await updateGenukaProduct(
+          //   genukaProduct,
+          //   createdOrUpdatedProduct.id,
+          //   companyConfig
+          // );
           globalLogs.push({
             type: "create",
             module: "products",

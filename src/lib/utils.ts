@@ -169,43 +169,6 @@ export const mapGenukaOrderToWooOrder = async (
     ? addresses.find((addr) => addr.id === input.billing.address_id)
     : null;
 
-  // Récupérer la commande existante si elle existe
-  // let existingOrder: WooOrderDto | null = null;
-  // if (existingOrderId) {
-  //   try {
-  //     const response = await wooApi.get(`orders/${existingOrderId}`);
-  //     existingOrder = response.data;
-  //   } catch (error) {
-  //     // logger.error(`Error fetching existing order: ${error}`);
-  //     console.log("Une erreur s'est produite", error);
-  //     existingOrder = null;
-  //   }
-  // }
-
-  console.log({ existingOrderId });
-  // Préparer les line_items et shipping_lines
-  // const updatedLineItems = existingOrder
-  //   ? existingOrder.line_items.map((item) => {
-  //       const updatedItem = lineItems.find(
-  //         (li) => li.product_id === item.product_id
-  //       );
-  //       return updatedItem ? { ...item, quantity: updatedItem.quantity } : item;
-  //     })
-  //   : lineItems;
-
-  // const updatedShippingLines = existingOrder
-  //   ? existingOrder.shipping_lines.map((line) => ({
-  //       ...line,
-  //       total: input.shipping.amount.toString(),
-  //     }))
-  //   : [
-  //       {
-  //         method_id: input.billing.treasury_account_id,
-  //         method_title: input.billing.treasury_account_label,
-  //         total: input.shipping.amount.toString(),
-  //       },
-  //     ];
-
   // Retourner l'objet WooOrderDto avec des valeurs par défaut si nécessaire
   return {
     customer_id: customer_id ?? 0, // Si customer_id est null, utiliser 0 (ou une autre valeur par défaut)
@@ -243,8 +206,6 @@ export const mapGenukaOrderToWooOrder = async (
         total: input.shipping.amount.toString(),
       },
     ],
-    // line_items: updatedLineItems,
-    // shipping_lines: updatedShippingLines,
     meta_data: [
       {
         key: "order_origin",

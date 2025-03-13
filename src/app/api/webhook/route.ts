@@ -58,80 +58,82 @@ export async function POST(request: Request) {
       queryStringAuth: true,
     });
 
+    // console.log({event})
+
     // 3. Traiter en fonction de l'événement
-    switch (event) {
-      case "order.created":
-        console.log("Created new order");
-        await upsertWooCommerceOrders(wooApi, config, [entity as OrderDTO]);
-        break;
+    // switch (event) {
+    //   case "order.created":
+    //     console.log("Created new order");
+    //     await upsertWooCommerceOrders(wooApi, config, [entity as OrderDTO]);
+    //     break;
 
-      case "order.updated":
-        console.log("Updated order");
-        await upsertWooCommerceOrders(wooApi, config, [entity as OrderDTO]);
-        break;
+    //   case "order.updated":
+    //     console.log("Updated order");
+    //     await upsertWooCommerceOrders(wooApi, config, [entity as OrderDTO]);
+    //     break;
 
-      case "order.deleted":
-        console.log("Deleted order");
-        const order = entity as OrderDTO;
-        await wooApi.delete(`orders/${order.metadata.woocommerceId}`);
-        break;
+    //   case "order.deleted":
+    //     console.log("Deleted order");
+    //     const order = entity as OrderDTO;
+    //     await wooApi.delete(`orders/${order.metadata.woocommerceId}`);
+    //     break;
 
-      case "product.created":
-        console.log("Created product");
-        const request = entity as ProductDto;
-        const createdProduct = await fetchProductFromGenukaWithId(request.id, config);
+    //   case "product.created":
+    //     console.log("Created product");
+    //     const request = entity as ProductDto;
+    //     const createdProduct = await fetchProductFromGenukaWithId(request.id, config);
 
-        await upsertWooCommerceProducts(config, wooApi, [createdProduct]);
-        break;
+    //     await upsertWooCommerceProducts(config, wooApi, [createdProduct]);
+    //     break;
 
-      case "product.updated":
-        console.log("Updated product");
-        const updatedProduct = entity as ProductDto;
-        const product = await fetchProductFromGenukaWithId(updatedProduct.id, config);
+    //   case "product.updated":
+    //     console.log("Updated product");
+    //     const updatedProduct = entity as ProductDto;
+    //     const product = await fetchProductFromGenukaWithId(updatedProduct.id, config);
 
-        await upsertWooCommerceProducts(config, wooApi, [product]);
-        break;
+    //     await upsertWooCommerceProducts(config, wooApi, [product]);
+    //     break;
 
-      case "product.deleted":
-        console.log("Deleted product");
-        const deletedProduct = entity as ProductDto;
-        console.log({ deletedProduct });
-        break;
+    //   case "product.deleted":
+    //     console.log("Deleted product");
+    //     const deletedProduct = entity as ProductDto;
+    //     console.log({ deletedProduct });
+    //     break;
 
-      case "customer.created":
-        console.log("Created Customer");
-        const createdCustomer = entity as GenukaCustomerDto;
-        await syncCustomersToWooCommerce(wooApi, config, [createdCustomer]);
-        break;
+    //   case "customer.created":
+    //     console.log("Created Customer");
+    //     const createdCustomer = entity as GenukaCustomerDto;
+    //     await syncCustomersToWooCommerce(wooApi, config, [createdCustomer]);
+    //     break;
 
-      case "customer.updated":
-        console.log("Updated Customer");
-        const updatedCustomer = entity as GenukaCustomerDto;
-        await syncCustomersToWooCommerce(wooApi, config, [updatedCustomer]);
-        break;
+    //   case "customer.updated":
+    //     console.log("Updated Customer");
+    //     const updatedCustomer = entity as GenukaCustomerDto;
+    //     await syncCustomersToWooCommerce(wooApi, config, [updatedCustomer]);
+    //     break;
 
-      case "customer.deleted":
-        const deletedCustomer = entity as GenukaCustomerDto;
-        const existingCustomer = await wooApi.get(
-          `customers/?email=${encodeURIComponent(
-            deletedCustomer.email
-          )}&role=all`
-        );
+    //   case "customer.deleted":
+    //     const deletedCustomer = entity as GenukaCustomerDto;
+    //     const existingCustomer = await wooApi.get(
+    //       `customers/?email=${encodeURIComponent(
+    //         deletedCustomer.email
+    //       )}&role=all`
+    //     );
 
-        if (existingCustomer.data && existingCustomer.data.length > 0) {
-          await wooApi.delete(`customers/${existingCustomer.data[0].id}`, {
-            force: true,
-          });
-        }
-        break;
+    //     if (existingCustomer.data && existingCustomer.data.length > 0) {
+    //       await wooApi.delete(`customers/${existingCustomer.data[0].id}`, {
+    //         force: true,
+    //       });
+    //     }
+    //     break;
 
-      default:
-        console.warn("Unknown event type:", event);
-        return NextResponse.json(
-          { error: `Unknown event type: ${event}` },
-          { status: 400 }
-        );
-    }
+    //   default:
+    //     console.warn("Unknown event type:", event);
+    //     return NextResponse.json(
+    //       { error: `Unknown event type: ${event}` },
+    //       { status: 400 }
+    //     );
+    // }
 
     // 4. Répondre avec un statut 200 pour confirmer la réception du webhook
     return NextResponse.json({ status: 200 });
