@@ -47,6 +47,7 @@ interface GenukaOrderBillingDto {
 interface Metadata {
   matchingMediaIds: [];
   woocommerceId: number;
+  dateLastSync?: number
 }
 
 interface GenukaShopDto {
@@ -252,6 +253,7 @@ export interface BillingDTO {
 export interface MetadataDTO {
   matchingMediaIds: string[];
   woocommerceId: number;
+  dateLastSync?: number
 }
 
 export interface CustomerDTO {

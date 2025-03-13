@@ -168,7 +168,7 @@ export const syncCustomersToWooCommerce = async (
           });
 
           // Optionnel : Mettre à jour le client Genuka avec l'ID WooCommerce
-          // await updateGenukaCustomerWithWooId(config, genukaCustomer, syncResult.id);
+          await updateGenukaCustomerWithWooId(config, genukaCustomer, syncResult.id);
         }
       } catch (error) {
         console.log(error);
@@ -311,6 +311,7 @@ const updateGenukaCustomerWithWooId = async (
     const updatedMetadata = {
       ...genukaCustomer.metadata,
       woocommerceId: woocommerceId,
+      dateLastSync: Date.now(),
     };
     const body = JSON.stringify({
       ...genukaCustomer,

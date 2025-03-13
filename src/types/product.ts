@@ -87,6 +87,7 @@ interface Metadata {
   matchingMediaIds: string[];
   woocommerceId: number;
   woocommerceWebsiteUrl: string;
+  dateLastSync?: number
 }
 
 interface Pivot {
@@ -337,3 +338,142 @@ export interface WooCommercerProductCreate {
     options: string[];
   }[];
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+interface WCProductImage {
+  id: number;
+  src: string;
+  name: string;
+  alt: string;
+}
+
+interface WCProductCategory {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+interface WCProductMetaData {
+  id: number;
+  key: string;
+  value: string;
+}
+
+interface WCProductDimensions {
+  length: string;
+  width: string;
+  height: string;
+}
+
+interface WCProductLinks {
+  self: { href: string }[];
+  collection: { href: string }[];
+}
+
+interface WCProductUpdateDto {
+  id: number;
+  name: string;
+  slug: string;
+  permalink: string;
+  date_created: string;
+  date_created_gmt: string;
+  date_modified: string;
+  date_modified_gmt: string;
+  type: 'simple' | 'grouped' | 'external' | 'variable';
+  status: string;
+  featured: boolean;
+  catalog_visibility: string;
+  description: string;
+  short_description: string;
+  sku: string;
+  price: string;
+  regular_price: string;
+  sale_price: string;
+  date_on_sale_from: string | null;
+  date_on_sale_from_gmt: string | null;
+  date_on_sale_to: string | null;
+  date_on_sale_to_gmt: string | null;
+  on_sale: boolean;
+  purchasable: boolean;
+  total_sales: number;
+  virtual: boolean;
+  downloadable: boolean;
+  downloads: any[]; // Vous pouvez définir un type plus spécifique si nécessaire
+  download_limit: number;
+  download_expiry: number;
+  external_url: string;
+  button_text: string;
+  tax_status: string;
+  tax_class: string;
+  manage_stock: boolean;
+  stock_quantity: number | null;
+  backorders: string;
+  backorders_allowed: boolean;
+  backordered: boolean;
+  low_stock_amount: number | null;
+  sold_individually: boolean;
+  weight: string;
+  dimensions: WCProductDimensions;
+  shipping_required: boolean;
+  shipping_taxable: boolean;
+  shipping_class: string;
+  shipping_class_id: number;
+  reviews_allowed: boolean;
+  average_rating: string;
+  rating_count: number;
+  upsell_ids: number[];
+  cross_sell_ids: number[];
+  parent_id: number;
+  purchase_note: string;
+  categories: WCProductCategory[];
+  tags: {id: number; name: string; slug: string}[]; // Vous pouvez définir un type plus spécifique si nécessaire
+  images: WCProductImage[];
+  attributes: {id: number; name: string; position: number; visible: boolean; variation: boolean; options: []}[]; // Vous pouvez définir un type plus spécifique si nécessaire
+  default_attributes: {id: number; name: string; option: string}[]; // Vous pouvez définir un type plus spécifique si nécessaire
+  variations: number[];
+  grouped_products: number[];
+  menu_order: number;
+  price_html: string;
+  related_ids: number[];
+  meta_data: WCProductMetaData[];
+  stock_status: 'instock' | 'outofstock' | 'onbackorder';
+  has_options: boolean;
+  post_password: string;
+  global_unique_id: string;
+  brands: any[]; // Vous pouvez définir un type plus spécifique si nécessaire
+  _links: WCProductLinks;
+}
+
+export default WCProductUpdateDto;

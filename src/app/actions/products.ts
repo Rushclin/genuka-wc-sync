@@ -82,6 +82,25 @@ const fetchProductsFromGenuka = async (
   return allProducts;
 };
 
+export const isSyncing = async (companyConfig: CompanyWithConfiguration, productId: string) => {
+  try{
+
+ const headers = new Headers({
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    "X-Company": `${companyConfig.configuration?.companyId}`,
+    Authorization: `Bearer ${companyConfig.accessToken}`,
+  });
+
+  // const res = await fetch(`products/?whereColumn=metadata->woocommerceId&whereOperator=%3D&whereValue=${productId}&per_page=2`)
+
+
+  }catch(error){
+    logger.error("Une erreur s'est produite", error)
+    throw new Error("Une erreur s'est produite lors de la verification de l'etat de veroullage", {cause: error})
+  }
+}
+
 export const fetchProductFromGenukaWithId = async (
   id: string,
   companyConfig: CompanyWithConfiguration
@@ -152,11 +171,11 @@ export const upsertWooCommerceProducts = async (
             genukaProduct,
             wooCommerceApi
           );
-          // await updateGenukaProduct(
-          //   genukaProduct,
-          //   createdOrUpdatedProduct.id,
-          //   companyConfig
-          // );
+          await updateGenukaProduct(
+            genukaProduct,
+            createdOrUpdatedProduct.id,
+            companyConfig
+          );
           globalLogs.push({
             type: "create",
             module: "products",
@@ -301,6 +320,7 @@ export const updateGenukaProduct = async (
     const updatedMetadata = {
       ...genukaProduct.metadata,
       woocommerceId: woocommerceId,
+      dateLastSync: Date.now(),
     };
 
     const response = await fetch(
