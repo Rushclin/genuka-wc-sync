@@ -171,11 +171,3 @@ const shouldSyncEntity = (entity: Entity): boolean => {
   const dateLastSync = metadata.dateLastSync * 1000;
   return now - dateLastSync >= 60000;
 };
-
-async function markEntityAsSyncing(
-  entityId: string,
-  isSyncing: boolean
-): Promise<void> {
-  // Implémentez la logique pour marquer l'entité comme en cours de synchronisation
-  // Par exemple, mettez à jour une colonne dans la base de données
-}
