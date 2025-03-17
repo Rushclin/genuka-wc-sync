@@ -6,6 +6,8 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ChevronRight } from "lucide-react";
 import { Toaster } from "@/components/ui/toaster";
+import { Suspense } from "react";
+import Spinner from "@/components/ui/spinner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -61,7 +63,9 @@ export default function RootLayout({
             />
           </div>
 
-          {children}
+          <Suspense fallback={<Spinner className="" />}>
+            {children}
+          </Suspense>
 
           <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
             <a
