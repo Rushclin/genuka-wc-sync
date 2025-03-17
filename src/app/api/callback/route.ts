@@ -1,5 +1,5 @@
 import { CompanyDBService } from "@/services/database/company.service";
-import Genuka from "genuka";
+import Genuka from "genuka-api";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {

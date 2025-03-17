@@ -160,7 +160,8 @@ const ConfigPage = () => {
           </form>
         </div>
       </div>
-    </div>);
+    </div>
+  );
 };
 
 export default ConfigPage;
