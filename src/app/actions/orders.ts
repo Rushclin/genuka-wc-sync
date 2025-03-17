@@ -141,11 +141,11 @@ export const upsertWooCommerceOrders = async (
           const productsWithPriceAndQte = products.map(
             mapGenukaProductToAddOtherProperties
           );
-          // await updateGenukaOrder(
-          //   config,
-          //   { ...data, products: productsWithPriceAndQte },
-          //   res.id
-          // );
+          await updateGenukaOrder(
+            config,
+            { ...data, products: productsWithPriceAndQte },
+            res.id
+          );
           globalLogs.push({
             type: "update",
             module: "products",
@@ -369,6 +369,7 @@ const updateGenukaOrder = async (
     const updatedMetadata = {
       ...order.metadata,
       woocommerceId,
+      dateLastSync: Date.now(),
     };
 
     const body = JSON.stringify({

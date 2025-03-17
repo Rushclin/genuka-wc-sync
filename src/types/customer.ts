@@ -1,3 +1,8 @@
+interface Metadata {
+  woocommerceId: number;
+  woocommerceWebsiteUrl: string;
+  dateLastSync?: number
+}
 export interface GenukaCustomerDto {
   id: string;
   first_name: string;
@@ -5,7 +10,7 @@ export interface GenukaCustomerDto {
   email: string;
   phone: string;
   gender: string | null;
-  metadata: any | null; 
+  metadata: Metadata | null; 
   company_id: string;
   created_at: string; 
   updated_at: string; 
