@@ -9,8 +9,8 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:dev.db"
 }
 
 model Subscription {
@@ -26,10 +26,10 @@ model Company {
   id                String   @id @unique // Genuka company ID
   handle            String?  @unique
   name              String
-  description       String?  @db.LongText
+  description       String? 
   logoUrl           String?
   authorizationCode String?
-  accessToken       String?  @db.LongText
+  accessToken       String? 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -44,11 +44,11 @@ model Configuration {
   id String @id @default(uuid())
 
   apiUrl         String
-  consumerKey    String @db.LongText
-  consumerSecret String @db.LongText
+  consumerKey    String
+  consumerSecret String
   appVersion     String @default("wc/v3")
 
-  apiKey String @db.LongText // Genuka API Key (retrive in dashboard)
+  apiKey String // Genuka API Key (retrive in dashboard)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
