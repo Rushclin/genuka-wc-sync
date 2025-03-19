@@ -28,6 +28,8 @@ export const syncCustomers = async (
       queryStringAuth: true,
     });
 
+    console.log({wooCommerceApi});
+
     const genukaCustomers = await fetchAllGenukaCustomers(config);
 
     logger.info(`Retrieved ${genukaCustomers.length} customers from Genuka`);
