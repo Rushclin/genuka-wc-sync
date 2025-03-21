@@ -65,9 +65,11 @@ export async function POST(request: Request) {
       queryStringAuth: true,
     });
 
-    logger.debug("Doit on synchroniser ? ", shouldSyncEntity(entity));
+    const shouldSync = shouldSyncEntity(entity);
 
-    if (!shouldSyncEntity(entity)) {
+    logger.info("Doit on synchroniser ? ", shouldSync);
+
+    if (!shouldSync) {
       return NextResponse.json({
         message:
           "L'entite a ete synchronise il ya quelques instant, donc surement un SPAM",
@@ -95,7 +97,10 @@ export async function POST(request: Request) {
       case "product.created":
         console.log("Created product");
         const request = entity as ProductDto;
-        const createdProduct = await fetchProductFromGenukaWithId(request.id, config);
+        const createdProduct = await fetchProductFromGenukaWithId(
+          request.id,
+          config
+        );
 
         await upsertWooCommerceProducts(config, wooApi, [createdProduct]);
         break;
@@ -103,7 +108,10 @@ export async function POST(request: Request) {
       case "product.updated":
         console.log("Updated product");
         const updatedProduct = entity as ProductDto;
-        const product = await fetchProductFromGenukaWithId(updatedProduct.id, config);
+        const product = await fetchProductFromGenukaWithId(
+          updatedProduct.id,
+          config
+        );
 
         await upsertWooCommerceProducts(config, wooApi, [product]);
         break;
@@ -167,6 +175,8 @@ const shouldSyncEntity = (entity: Entity): boolean => {
   if (!metadata || !metadata.dateLastSync) {
     return true; // Synchroniser si le timestamp n'existe pas
   }
+
+  console.log("La date de derniere synchrosation ==> ", metadata.dateLastSync);
 
   const dateLastSync = metadata.dateLastSync * 1000;
   return now - dateLastSync >= 60000;
