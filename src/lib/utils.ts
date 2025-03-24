@@ -211,6 +211,10 @@ export const mapGenukaOrderToWooOrder = async (
         key: "order_origin",
         value: input.source,
       },
+      {
+        key: '_wc_order_attribution',
+        value: input.source
+      }
     ],
     source: input.source,
   };
@@ -298,6 +302,10 @@ export const mapGenukaOrderToWooOrderUpdate = (
         key: "order_origin",
         value: input.source,
       },
+      {
+        key: "_wc_order_attribution",
+        value: input.source
+      }
     ],
     source: input.source,
   };
