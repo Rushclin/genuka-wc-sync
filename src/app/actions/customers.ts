@@ -62,7 +62,7 @@ const fetchAllGenukaCustomers = async (
   headers.append("Accept", "application/json");
   headers.append("Content-Type", "application/json");
   headers.append("X-Company", `${config.configuration?.companyId}`);
-  headers.append("Authorization", `Bearer ${config.accessToken}`);
+  headers.append('X-API-Key', `${config.configuration?.apiKey}`,);
 
   while (hasNextPage) {
     const requestOptions = {
@@ -308,7 +308,7 @@ const updateGenukaCustomerWithWooId = async (
     headers.append("Accept", "application/json");
     headers.append("Content-Type", "application/json");
     headers.append("X-Company", `${config?.configuration!.companyId}`);
-    headers.append("Authorization", `Bearer ${config.accessToken}`);
+    headers.append('X-API-Key', `${config?.configuration?.apiKey}`,);
 
     const updatedMetadata = {
       ...genukaCustomer.metadata,

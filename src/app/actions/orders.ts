@@ -61,7 +61,7 @@ const fetchAllGenukaOrders = async (
   headers.append("Accept", "application/json");
   headers.append("Content-Type", "application/json");
   headers.append("X-Company", `${config.configuration?.companyId}`);
-  headers.append("Authorization", `Bearer ${config.accessToken}`);
+  headers.append("X-API-Key", `${config.configuration?.apiKey}`);
 
   while (hasNextPage) {
     const requestOptions = {
@@ -102,7 +102,7 @@ export const upsertWooCommerceOrders = async (
     headers.append("Accept", "application/json");
     headers.append("Content-Type", "application/json");
     headers.append("X-Company", `${config.configuration?.companyId}`);
-    headers.append("Authorization", `Bearer ${config.accessToken}`);
+    headers.append("X-API-Key", `${config.configuration?.apiKey}`);
 
     const requestOptions = {
       method: "GET",
@@ -266,9 +266,11 @@ const prepareLineItemsForOrder = async (
         logger.debug(
           "The product does not exist in WooCommerce. Creating it..."
         );
-        const createdProducts = await upsertWooCommerceProducts(config, wooApi, [
-          product,
-        ]);
+        const createdProducts = await upsertWooCommerceProducts(
+          config,
+          wooApi,
+          [product]
+        );
         wooProductId = createdProducts[0].id;
       }
 
@@ -364,7 +366,7 @@ const updateGenukaOrder = async (
     headers.append("Accept", "application/json");
     headers.append("Content-Type", "application/json");
     headers.append("X-Company", `${config.configuration?.companyId}`);
-    headers.append("Authorization", `Bearer ${config.accessToken}`);
+    headers.append("X-API-Key", `${config.configuration?.apiKey}`);
 
     const updatedMetadata = {
       ...order.metadata,
@@ -441,7 +443,7 @@ export const updateWooCommerceOrder = async (
       order,
       updatedLineItems,
       updatedShippingLines,
-      wooCustomerId,
+      wooCustomerId
     );
 
     // // -------------
@@ -576,11 +578,7 @@ export const updateWooCommerceOrder = async (
 //   return { updatedLineItems, updatedShippingLines };
 // };
 
-const combineLines = (
-  order: WooOrderDto,
-  lineItems: any[],
-  total: string
-) => {
+const combineLines = (order: WooOrderDto, lineItems: any[], total: string) => {
   const productQuantityMap = new Map<number, number>();
 
   order.line_items.forEach((item) => {

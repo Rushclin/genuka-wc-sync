@@ -51,7 +51,7 @@ const fetchProductsFromGenuka = async (
     Accept: "application/json",
     "Content-Type": "application/json",
     "X-Company": `${companyConfig.configuration?.companyId}`,
-    Authorization: `Bearer ${companyConfig.accessToken}`,
+    'X-API-Key': `${companyConfig.configuration?.apiKey}`,
   });
 
   while (hasNextPage) {
@@ -89,7 +89,7 @@ export const isSyncing = async (companyConfig: CompanyWithConfiguration, product
     Accept: "application/json",
     "Content-Type": "application/json",
     "X-Company": `${companyConfig.configuration?.companyId}`,
-    Authorization: `Bearer ${companyConfig.accessToken}`,
+    'X-API-Key': `${companyConfig.configuration?.apiKey}`,
   });
 
   // const res = await fetch(`products/?whereColumn=metadata->woocommerceId&whereOperator=%3D&whereValue=${productId}&per_page=2`)
@@ -109,7 +109,7 @@ export const fetchProductFromGenukaWithId = async (
     Accept: "application/json",
     "Content-Type": "application/json",
     "X-Company": `${companyConfig.configuration?.companyId}`,
-    Authorization: `Bearer ${companyConfig.accessToken}`,
+    'X-API-Key': `${companyConfig.configuration?.apiKey}`,
   });
 
   const requestOptions = {
@@ -314,7 +314,7 @@ export const updateGenukaProduct = async (
       Accept: "application/json",
       "Content-Type": "application/json",
       "X-Company": `${companyConfig.configuration!.companyId}`,
-      Authorization: `Bearer ${companyConfig.accessToken}`,
+      'X-API-Key': `${companyConfig.configuration?.apiKey}`,
     });
 
     const updatedMetadata = {
